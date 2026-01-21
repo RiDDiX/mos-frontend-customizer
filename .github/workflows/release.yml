@@ -38,7 +38,7 @@ jobs:
         npm install
         PLUGIN_VERSION=${{ env.VERSION }} npm run build
 
-    - name: Create Release Archive
+    - name: Create Release Archive (tar.gz)
       run: |
         mkdir -p release/frontend-customizer
         cp -r page/dist/frontend-customizer/* release/frontend-customizer/
@@ -53,6 +53,67 @@ jobs:
         tar -czf ../mos-frontend-customizer-${{ env.VERSION }}.tar.gz .
         cd ..
         md5sum mos-frontend-customizer-${{ env.VERSION }}.tar.gz | awk '{print $1}' > mos-frontend-customizer-${{ env.VERSION }}.tar.gz.md5
+
+    - name: Create .deb Package
+      run: |
+        PKG_NAME="mos-frontend-customizer"
+        PKG_VERSION="${{ env.VERSION }}"
+        PKG_DIR="${PKG_NAME}_${PKG_VERSION}_amd64"
+        
+        # Create debian package structure
+        mkdir -p ${PKG_DIR}/DEBIAN
+        mkdir -p ${PKG_DIR}/var/www/mos-plugins/frontend-customizer
+        
+        # Copy plugin files
+        cp -r page/dist/frontend-customizer/* ${PKG_DIR}/var/www/mos-plugins/frontend-customizer/
+        cp theme-loader.js ${PKG_DIR}/var/www/mos-plugins/frontend-customizer/
+        cp settings.json ${PKG_DIR}/var/www/mos-plugins/frontend-customizer/
+        
+        # Create control file
+        cat > ${PKG_DIR}/DEBIAN/control << EOF
+        Package: ${PKG_NAME}
+        Version: ${PKG_VERSION}
+        Section: web
+        Priority: optional
+        Architecture: amd64
+        Maintainer: RiDDiX <info@riddix.de>
+        Description: Frontend Customizer - MOS
+         Advanced frontend customizer with themes, branding & layout options for MOS.
+         Includes 6 built-in themes, custom theme creator, branding options, and layout settings.
+        EOF
+        
+        # Create postinst script (runs after installation)
+        cat > ${PKG_DIR}/DEBIAN/postinst << 'POSTINST'
+        #!/bin/bash
+        INDEX_FILE="/var/www/index.html"
+        LOADER_SCRIPT='<script src="/mos-plugins/frontend-customizer/theme-loader.js"></script>'
+        
+        if [ -f "$INDEX_FILE" ]; then
+          if ! grep -q "frontend-customizer/theme-loader.js" "$INDEX_FILE"; then
+            sed -i 's|<head>|<head>\n    '"$LOADER_SCRIPT"'|' "$INDEX_FILE"
+          fi
+        fi
+        
+        chmod -R 755 /var/www/mos-plugins/frontend-customizer
+        exit 0
+        POSTINST
+        chmod 755 ${PKG_DIR}/DEBIAN/postinst
+        
+        # Create prerm script (runs before removal)
+        cat > ${PKG_DIR}/DEBIAN/prerm << 'PRERM'
+        #!/bin/bash
+        INDEX_FILE="/var/www/index.html"
+        
+        if [ -f "$INDEX_FILE" ]; then
+          sed -i '/frontend-customizer\/theme-loader.js/d' "$INDEX_FILE"
+        fi
+        exit 0
+        PRERM
+        chmod 755 ${PKG_DIR}/DEBIAN/prerm
+        
+        # Build the .deb package
+        dpkg-deb --build ${PKG_DIR}
+        mv ${PKG_DIR}.deb ${PKG_NAME}_${PKG_VERSION}_amd64.deb
 
     - name: Create Release
       id: create_release
@@ -106,3 +167,13 @@ jobs:
         asset_path: ./mos-frontend-customizer-${{ env.VERSION }}.tar.gz.md5
         asset_name: mos-frontend-customizer-${{ env.VERSION }}.tar.gz.md5
         asset_content_type: text/plain
+
+    - name: Upload .deb Package
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./mos-frontend-customizer_${{ env.VERSION }}_amd64.deb
+        asset_name: mos-frontend-customizer_${{ env.VERSION }}_amd64.deb
+        asset_content_type: application/vnd.debian.binary-package
