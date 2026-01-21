@@ -86,45 +86,45 @@ jobs:
         chmod +x ${PKG_DIR}/var/www/mos-plugins/frontend-customizer/functions
         
         # Create control file
-        cat > ${PKG_DIR}/DEBIAN/control << EOF
-        Package: ${PKG_NAME}
-        Version: ${PKG_VERSION}
-        Section: web
-        Priority: optional
-        Architecture: amd64
-        Maintainer: RiDDiX <info@riddix.de>
-        Description: Frontend Customizer - MOS
-         Advanced frontend customizer with themes, branding & layout options for MOS.
-         Includes 6 built-in themes, custom theme creator, branding options, and layout settings.
-        EOF
+        cat > ${PKG_DIR}/DEBIAN/control << CTRL
+Package: ${PKG_NAME}
+Version: ${PKG_VERSION}
+Section: web
+Priority: optional
+Architecture: amd64
+Maintainer: RiDDiX <info@riddix.de>
+Description: Frontend Customizer - MOS
+ Advanced frontend customizer with themes, branding & layout options for MOS.
+ Includes 6 built-in themes, custom theme creator, branding options, and layout settings.
+CTRL
         
         # Create postinst script (runs after installation)
         cat > ${PKG_DIR}/DEBIAN/postinst << 'POSTINST'
-        #!/bin/bash
-        INDEX_FILE="/var/www/index.html"
-        LOADER_SCRIPT='<script src="/mos-plugins/frontend-customizer/theme-loader.js"></script>'
-        
-        if [ -f "$INDEX_FILE" ]; then
-          if ! grep -q "frontend-customizer/theme-loader.js" "$INDEX_FILE"; then
-            sed -i 's|<head>|<head>\n    '"$LOADER_SCRIPT"'|' "$INDEX_FILE"
-          fi
-        fi
-        
-        chmod -R 755 /var/www/mos-plugins/frontend-customizer
-        exit 0
-        POSTINST
+#!/bin/bash
+INDEX_FILE="/var/www/index.html"
+LOADER_SCRIPT='<script src="/mos-plugins/frontend-customizer/theme-loader.js"></script>'
+
+if [ -f "$INDEX_FILE" ]; then
+  if ! grep -q "frontend-customizer/theme-loader.js" "$INDEX_FILE"; then
+    sed -i 's|<head>|<head>\n    '"$LOADER_SCRIPT"'|' "$INDEX_FILE"
+  fi
+fi
+
+chmod -R 755 /var/www/mos-plugins/frontend-customizer
+exit 0
+POSTINST
         chmod 755 ${PKG_DIR}/DEBIAN/postinst
         
         # Create prerm script (runs before removal)
         cat > ${PKG_DIR}/DEBIAN/prerm << 'PRERM'
-        #!/bin/bash
-        INDEX_FILE="/var/www/index.html"
-        
-        if [ -f "$INDEX_FILE" ]; then
-          sed -i '/frontend-customizer\/theme-loader.js/d' "$INDEX_FILE"
-        fi
-        exit 0
-        PRERM
+#!/bin/bash
+INDEX_FILE="/var/www/index.html"
+
+if [ -f "$INDEX_FILE" ]; then
+  sed -i '/frontend-customizer\/theme-loader.js/d' "$INDEX_FILE"
+fi
+exit 0
+PRERM
         chmod 755 ${PKG_DIR}/DEBIAN/prerm
         
         # Build the .deb package (output to current directory)
