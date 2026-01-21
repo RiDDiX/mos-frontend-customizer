@@ -546,7 +546,8 @@
                   <span class="text-body-2">{{ item.title }}</span>
                   <v-spacer />
                   <v-switch
-                    v-model="item.visible"
+                    :model-value="item.visible"
+                    @update:model-value="toggleMenuItemVisibility(item)"
                     hide-details
                     density="compact"
                     color="primary"
@@ -1848,6 +1849,13 @@ const toggleHeaderPlugin = (pluginName, enabled) => {
       p => p !== pluginName
     );
   }
+  // Apply changes immediately
+  applyLayout();
+};
+
+const toggleMenuItemVisibility = (item) => {
+  item.visible = !item.visible;
+  applyLayout();
 };
 
 const applyLayout = () => {
