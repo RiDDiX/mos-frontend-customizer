@@ -191,6 +191,29 @@
         headerNav.appendChild(link);
       });
       
+      // Add header plugins as direct links
+      const headerPlugins = layout.headerPlugins || [];
+      if (headerPlugins.length > 0) {
+        // Add separator
+        const separator = document.createElement('span');
+        separator.style.cssText = 'width: 1px; height: 20px; background: ' + baseTheme.primary + '44; margin: 0 8px;';
+        headerNav.appendChild(separator);
+        
+        // Add plugin links
+        headerPlugins.forEach(function(pluginName) {
+          const link = document.createElement('a');
+          link.href = '/plugins/' + pluginName;
+          link.innerHTML = '<span class="v-icon mdi mdi-puzzle"></span><span>' + pluginName + '</span>';
+          link.style.cssText = 'background: ' + baseTheme.primary + '11 !important; border-color: ' + baseTheme.primary + '33 !important;';
+          link.addEventListener('click', function(e) {
+            e.preventDefault();
+            window.history.pushState({}, '', '/plugins/' + pluginName);
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          });
+          headerNav.appendChild(link);
+        });
+      }
+      
       const toolbarTitle = appBar.querySelector('.v-toolbar-title');
       if (toolbarTitle && toolbarTitle.nextSibling) {
         appBar.insertBefore(headerNav, toolbarTitle.nextSibling);

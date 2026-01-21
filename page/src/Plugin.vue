@@ -560,6 +560,54 @@
 
           <v-row>
             <v-col cols="12">
+              <div class="text-subtitle-2 mb-2">Header Plugin Shortcuts</div>
+              <p class="text-caption text-medium-emphasis mb-3">
+                Add individual plugins directly to the header menu instead of going through "Plugins"
+              </p>
+              <v-btn
+                v-if="installedPlugins.length === 0"
+                variant="outlined"
+                size="small"
+                :loading="loadingPlugins"
+                @click="fetchInstalledPlugins"
+                class="mb-3"
+              >
+                <v-icon start>mdi-refresh</v-icon>
+                Load Available Plugins
+              </v-btn>
+              <div v-if="installedPlugins.length > 0" class="header-plugins-list">
+                <div
+                  v-for="plugin in installedPlugins"
+                  :key="plugin.name"
+                  class="header-plugin-item d-flex align-center pa-2 mb-1 rounded"
+                  :style="{
+                    background: layoutSettings.headerPlugins?.includes(plugin.name) 
+                      ? 'rgba(var(--v-theme-primary), 0.2)' 
+                      : 'rgba(var(--v-theme-surface), 0.3)',
+                    border: layoutSettings.headerPlugins?.includes(plugin.name)
+                      ? '1px solid rgba(var(--v-theme-primary), 0.5)'
+                      : '1px solid rgba(var(--v-theme-primary), 0.1)'
+                  }"
+                >
+                  <v-icon size="small" class="mr-2">{{ plugin.icon || 'mdi-puzzle' }}</v-icon>
+                  <span class="text-body-2">{{ plugin.displayName || plugin.name }}</span>
+                  <v-spacer />
+                  <v-switch
+                    :model-value="layoutSettings.headerPlugins?.includes(plugin.name)"
+                    @update:model-value="toggleHeaderPlugin(plugin.name, $event)"
+                    hide-details
+                    density="compact"
+                    color="primary"
+                  />
+                </div>
+              </div>
+            </v-col>
+          </v-row>
+
+          <v-divider class="my-4" />
+
+          <v-row>
+            <v-col cols="12">
               <div class="text-subtitle-2 mb-3">Live Preview</div>
               <div 
                 class="preview-container rounded pa-3"
@@ -1206,9 +1254,12 @@ const defaultMenuItems = [
 const layoutSettings = ref({
   navMode: 'sidebar',
   menuOrder: JSON.parse(JSON.stringify(defaultMenuItems)),
+  headerPlugins: [],
 });
 
 const savingLayout = ref(false);
+const installedPlugins = ref([]);
+const loadingPlugins = ref(false);
 let draggedIndex = null;
 
 const getCurrentTheme = () => {
@@ -1246,6 +1297,7 @@ const fetchSettings = async () => {
         layoutSettings.value = {
           navMode: data.layout.navMode || 'sidebar',
           menuOrder: data.layout.menuOrder || JSON.parse(JSON.stringify(defaultMenuItems)),
+          headerPlugins: data.layout.headerPlugins || [],
         };
       }
       if (data.customThemes && Array.isArray(data.customThemes)) {
@@ -1715,6 +1767,7 @@ const resetLayout = () => {
   layoutSettings.value = {
     navMode: 'sidebar',
     menuOrder: JSON.parse(JSON.stringify(defaultMenuItems)),
+    headerPlugins: [],
   };
 };
 
@@ -1728,6 +1781,7 @@ const saveLayout = async () => {
       layout: {
         navMode: layoutSettings.value.navMode,
         menuOrder: layoutSettings.value.menuOrder,
+        headerPlugins: layoutSettings.value.headerPlugins || [],
       },
     };
     
@@ -1751,6 +1805,47 @@ const saveLayout = async () => {
     console.error('Failed to save layout:', e);
   } finally {
     savingLayout.value = false;
+  }
+};
+
+const fetchInstalledPlugins = async () => {
+  loadingPlugins.value = true;
+  try {
+    const res = await fetch('/api/v1/mos/plugins', {
+      headers: getAuthHeaders(),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      // Filter to only show installed plugins with a manifest
+      installedPlugins.value = (data.plugins || data || [])
+        .filter(p => p.name && p.name !== 'frontend-customizer')
+        .map(p => ({
+          name: p.name,
+          displayName: p.displayName || p.name,
+          icon: p.icon || 'mdi-puzzle',
+          route: `/plugins/${p.name}`,
+        }));
+    }
+  } catch (e) {
+    console.error('Failed to fetch plugins:', e);
+  } finally {
+    loadingPlugins.value = false;
+  }
+};
+
+const toggleHeaderPlugin = (pluginName, enabled) => {
+  if (!layoutSettings.value.headerPlugins) {
+    layoutSettings.value.headerPlugins = [];
+  }
+  
+  if (enabled) {
+    if (!layoutSettings.value.headerPlugins.includes(pluginName)) {
+      layoutSettings.value.headerPlugins.push(pluginName);
+    }
+  } else {
+    layoutSettings.value.headerPlugins = layoutSettings.value.headerPlugins.filter(
+      p => p !== pluginName
+    );
   }
 };
 
@@ -1868,6 +1963,30 @@ const applyLayout = () => {
         });
         headerNav.appendChild(link);
       });
+      
+      // Add header plugins as direct links
+      const headerPlugins = layoutSettings.value.headerPlugins || [];
+      if (headerPlugins.length > 0) {
+        // Add separator
+        const separator = document.createElement('span');
+        separator.style.cssText = 'width: 1px; height: 20px; background: ' + (theme?.primary || '#00ff41') + '44; margin: 0 8px;';
+        headerNav.appendChild(separator);
+        
+        // Add plugin links
+        headerPlugins.forEach(pluginName => {
+          const plugin = installedPlugins.value.find(p => p.name === pluginName);
+          const link = document.createElement('a');
+          link.href = `/plugins/${pluginName}`;
+          link.innerHTML = '<span class="v-icon mdi ' + (plugin?.icon || 'mdi-puzzle') + '"></span><span>' + (plugin?.displayName || pluginName) + '</span>';
+          link.style.cssText = 'background: ' + (theme?.primary || '#00ff41') + '11 !important; border-color: ' + (theme?.primary || '#00ff41') + '33 !important;';
+          link.addEventListener('click', (e) => {
+            e.preventDefault();
+            window.history.pushState({}, '', `/plugins/${pluginName}`);
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          });
+          headerNav.appendChild(link);
+        });
+      }
       
       // Insert after the title (before spacer)
       const toolbarTitle = appBar.querySelector('.v-toolbar-title');
