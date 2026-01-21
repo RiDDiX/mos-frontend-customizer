@@ -1825,7 +1825,7 @@ const fetchInstalledPlugins = async () => {
           name: p.name,
           displayName: p.displayName || p.name,
           icon: p.icon || 'mdi-puzzle',
-          route: `/plugins/${p.name}`,
+          route: `/plugin/${p.name}`,
         }));
     }
   } catch (e) {
@@ -1873,6 +1873,26 @@ const applyLayout = () => {
   const existingHeaderNav = document.getElementById('riddix-header-nav');
   if (existingHeaderNav) {
     existingHeaderNav.remove();
+  }
+
+  // Generate CSS to hide disabled menu items in sidebar
+  const hiddenItemsCSS = menuOrder
+    .filter(item => !item.visible)
+    .map(item => {
+      // Match sidebar links by href
+      return `.v-navigation-drawer a[href="${item.route}"] { display: none !important; }`;
+    })
+    .join('\n');
+
+  if (navMode === 'sidebar') {
+    // Sidebar mode - only apply hidden items CSS
+    if (hiddenItemsCSS) {
+      const layoutStyle = document.createElement('style');
+      layoutStyle.id = 'riddix-layout-styles';
+      layoutStyle.textContent = hiddenItemsCSS;
+      document.head.appendChild(layoutStyle);
+    }
+    return;
   }
 
   if (navMode === 'header') {
@@ -1985,12 +2005,12 @@ const applyLayout = () => {
         headerPlugins.forEach(pluginName => {
           const plugin = installedPlugins.value.find(p => p.name === pluginName);
           const link = document.createElement('a');
-          link.href = `/plugins/${pluginName}`;
+          link.href = `/plugin/${pluginName}`;
           link.innerHTML = '<span class="v-icon mdi ' + (plugin?.icon || 'mdi-puzzle') + '"></span><span>' + (plugin?.displayName || pluginName) + '</span>';
           link.style.cssText = 'background: ' + (theme?.primary || '#00ff41') + '11 !important; border-color: ' + (theme?.primary || '#00ff41') + '33 !important;';
           link.addEventListener('click', (e) => {
             e.preventDefault();
-            window.history.pushState({}, '', `/plugins/${pluginName}`);
+            window.history.pushState({}, '', `/plugin/${pluginName}`);
             window.dispatchEvent(new PopStateEvent('popstate'));
           });
           headerNav.appendChild(link);

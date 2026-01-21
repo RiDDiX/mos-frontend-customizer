@@ -202,12 +202,12 @@
         // Add plugin links
         headerPlugins.forEach(function(pluginName) {
           const link = document.createElement('a');
-          link.href = '/plugins/' + pluginName;
+          link.href = '/plugin/' + pluginName;
           link.innerHTML = '<span class="v-icon mdi mdi-puzzle"></span><span>' + pluginName + '</span>';
           link.style.cssText = 'background: ' + baseTheme.primary + '11 !important; border-color: ' + baseTheme.primary + '33 !important;';
           link.addEventListener('click', function(e) {
             e.preventDefault();
-            window.history.pushState({}, '', '/plugins/' + pluginName);
+            window.history.pushState({}, '', '/plugin/' + pluginName);
             window.dispatchEvent(new PopStateEvent('popstate'));
           });
           headerNav.appendChild(link);
