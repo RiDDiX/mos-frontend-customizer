@@ -1814,26 +1814,10 @@ const fetchInstalledPlugins = async () => {
     const res = await fetch('/api/v1/mos/plugins', {
       headers: getAuthHeaders(),
     });
-    console.log('Plugins API response status:', res.status);
     if (res.ok) {
       const data = await res.json();
-      console.log('Plugins API data:', data);
-      // Handle different response formats
-      let pluginList = [];
-      if (Array.isArray(data)) {
-        pluginList = data;
-      } else if (data.plugins && Array.isArray(data.plugins)) {
-        pluginList = data.plugins;
-      } else if (data.data && Array.isArray(data.data)) {
-        pluginList = data.data;
-      } else if (typeof data === 'object') {
-        // Maybe it's an object with plugin names as keys
-        pluginList = Object.keys(data).map(key => ({
-          name: key,
-          ...data[key]
-        }));
-      }
-      console.log('Plugin list:', pluginList);
+      // MOS API returns { count, results: [...] }
+      const pluginList = data.results || data.plugins || data.data || (Array.isArray(data) ? data : []);
       installedPlugins.value = pluginList
         .filter(p => p && p.name && p.name !== 'frontend-customizer')
         .map(p => ({
@@ -1842,9 +1826,6 @@ const fetchInstalledPlugins = async () => {
           icon: p.icon || 'mdi-puzzle',
           route: `/plugins/${p.name}`,
         }));
-      console.log('Installed plugins:', installedPlugins.value);
-    } else {
-      console.error('Plugins API error:', res.status, await res.text());
     }
   } catch (e) {
     console.error('Failed to fetch plugins:', e);
