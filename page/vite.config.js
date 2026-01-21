@@ -5,7 +5,7 @@ import { writeFileSync, mkdirSync } from 'fs';
 import { resolve } from 'path';
 import pluginConfig from './plugin.config.js';
 
-const PLUGIN_VERSION = process.env.PLUGIN_VERSION || pluginConfig.version;
+const PLUGIN_VERSION = pluginConfig.version;
 const PLUGIN_NAME = pluginConfig.name;
 
 const generateManifest = () => ({
