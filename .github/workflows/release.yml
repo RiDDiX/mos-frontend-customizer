@@ -31,17 +31,19 @@ jobs:
     - name: Get version from plugin.config.js
       id: version
       run: |
-        VERSION=$(node -p "require('./page/plugin.config.js').default.version")
+        VERSION=$(grep -oP "version:\s*['\"]\\K[^'\"]*" page/plugin.config.js)
         echo "VERSION=$VERSION" >> $GITHUB_ENV
         echo "Detected version: $VERSION"
 
     - name: Install dependencies and build
+      env:
+        PLUGIN_VERSION: ${{ env.VERSION }}
       run: |
         cd page
         npm install
-        export PLUGIN_VERSION=${{ env.VERSION }}
         npm run build
         echo "Built with PLUGIN_VERSION=$PLUGIN_VERSION"
+        cat dist/frontend-customizer/manifest.json
 
     - name: Convert line endings to LF
       run: |
