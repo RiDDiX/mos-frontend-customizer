@@ -1,6 +1,24 @@
 {
   "theme": null,
-  "enableGlow": true,
-  "enableScanlines": false,
-  "enableAnimations": true
+  "options": {
+    "enableGlow": true,
+    "enableScanlines": false,
+    "enableAnimations": true
+  },
+  "customization": {
+    "appName": "",
+    "logoUrl": "",
+    "primaryColor": "",
+    "secondaryColor": "",
+    "accentColor": "",
+    "buttonColor": "",
+    "buttonTextColor": ""
+  },
+  "layout": {
+    "compactMode": false,
+    "sidebarWidth": "normal",
+    "hideFooter": false,
+    "hideBranding": false
+  },
+  "customThemes": []
 }
