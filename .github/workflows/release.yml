@@ -38,6 +38,12 @@ jobs:
         npm install
         PLUGIN_VERSION=${{ env.VERSION }} npm run build
 
+    - name: Convert line endings to LF
+      run: |
+        sed -i 's/\r$//' functions
+        sed -i 's/\r$//' install.sh
+        sed -i 's/\r$//' uninstall.sh
+
     - name: Create Release Archive (tar.gz)
       run: |
         mkdir -p release/frontend-customizer
