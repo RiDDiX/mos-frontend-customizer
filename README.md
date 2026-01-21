@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <strong>🔥 Advanced Frontend Customizer for MOS (Mountain OS) 🔥</strong>
+  <strong>🔥 Advanced Frontend Customizer for MOS 🔥</strong>
 </p>
 
 <p align="center">

@@ -1,0 +1,56 @@
+#!/bin/bash
+#
+# Frontend Customizer - MOS Plugin Functions
+# These functions are automatically called by MOS at specific events
+#
+
+# Called when the plugin is installed
+install() {
+    INDEX_FILE="/var/www/index.html"
+    LOADER_SCRIPT='<script src="/mos-plugins/frontend-customizer/theme-loader.js"></script>'
+    
+    # Inject theme loader into index.html if not already present
+    if [ -f "$INDEX_FILE" ]; then
+        if ! grep -q "frontend-customizer/theme-loader.js" "$INDEX_FILE"; then
+            sed -i 's|<head>|<head>\n    '"$LOADER_SCRIPT"'|' "$INDEX_FILE"
+        fi
+    fi
+    
+    # Set permissions
+    chmod -R 755 /var/www/mos-plugins/frontend-customizer
+}
+
+# Called when the plugin is uninstalled
+uninstall() {
+    INDEX_FILE="/var/www/index.html"
+    
+    # Remove theme loader from index.html
+    if [ -f "$INDEX_FILE" ]; then
+        sed -i '/frontend-customizer\/theme-loader.js/d' "$INDEX_FILE"
+    fi
+}
+
+# Called when the plugin is updated
+plugin_update() {
+    # Re-inject theme loader in case index.html was updated
+    install
+}
+
+# Called when MOS starts
+mos_start() {
+    # Ensure theme loader is present after MOS restart
+    INDEX_FILE="/var/www/index.html"
+    LOADER_SCRIPT='<script src="/mos-plugins/frontend-customizer/theme-loader.js"></script>'
+    
+    if [ -f "$INDEX_FILE" ]; then
+        if ! grep -q "frontend-customizer/theme-loader.js" "$INDEX_FILE"; then
+            sed -i 's|<head>|<head>\n    '"$LOADER_SCRIPT"'|' "$INDEX_FILE"
+        fi
+    fi
+}
+
+# Called during an OS or kernel update
+mos_osupdate() {
+    # Re-inject theme loader after OS update (index.html might be replaced)
+    install
+}

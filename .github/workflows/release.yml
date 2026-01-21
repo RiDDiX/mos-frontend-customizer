@@ -43,12 +43,13 @@ jobs:
         mkdir -p release/frontend-customizer
         cp -r page/dist/frontend-customizer/* release/frontend-customizer/
         cp theme-loader.js release/frontend-customizer/
+        cp functions release/frontend-customizer/
+        cp settings.json release/frontend-customizer/
         cp install.sh release/
         cp uninstall.sh release/
-        cp settings.json release/
         cp README.md release/
         cp LICENSE release/
-        chmod +x release/install.sh release/uninstall.sh
+        chmod +x release/install.sh release/uninstall.sh release/frontend-customizer/functions
         cd release
         tar -czf ../mos-frontend-customizer-${{ env.VERSION }}.tar.gz .
         cd ..
@@ -67,7 +68,9 @@ jobs:
         # Copy plugin files
         cp -r page/dist/frontend-customizer/* ${PKG_DIR}/var/www/mos-plugins/frontend-customizer/
         cp theme-loader.js ${PKG_DIR}/var/www/mos-plugins/frontend-customizer/
+        cp functions ${PKG_DIR}/var/www/mos-plugins/frontend-customizer/
         cp settings.json ${PKG_DIR}/var/www/mos-plugins/frontend-customizer/
+        chmod +x ${PKG_DIR}/var/www/mos-plugins/frontend-customizer/functions
         
         # Create control file
         cat > ${PKG_DIR}/DEBIAN/control << EOF
