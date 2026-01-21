@@ -111,9 +111,8 @@ jobs:
         PRERM
         chmod 755 ${PKG_DIR}/DEBIAN/prerm
         
-        # Build the .deb package
-        dpkg-deb --build ${PKG_DIR}
-        mv ${PKG_DIR}.deb ${PKG_NAME}_${PKG_VERSION}_amd64.deb
+        # Build the .deb package (output to current directory)
+        dpkg-deb --build ${PKG_DIR} .
 
     - name: Create Release
       id: create_release
