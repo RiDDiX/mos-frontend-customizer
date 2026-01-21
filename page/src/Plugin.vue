@@ -1869,9 +1869,12 @@ const applyLayout = () => {
         headerNav.appendChild(link);
       });
       
-      // Insert after the title
+      // Insert after the title (before spacer)
       const toolbarTitle = appBar.querySelector('.v-toolbar-title');
-      if (toolbarTitle && toolbarTitle.nextSibling) {
+      const spacer = appBar.querySelector('.v-spacer');
+      if (spacer) {
+        appBar.insertBefore(headerNav, spacer);
+      } else if (toolbarTitle && toolbarTitle.nextSibling) {
         appBar.insertBefore(headerNav, toolbarTitle.nextSibling);
       } else {
         appBar.appendChild(headerNav);
