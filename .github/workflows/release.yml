@@ -1,0 +1,108 @@
+name: Build and Release Frontend Customizer
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Get version from tag
+      id: version
+      run: |
+        if [[ $GITHUB_REF == refs/tags/* ]]; then
+          VERSION=${GITHUB_REF#refs/tags/v}
+        else
+          VERSION="1.0.0"
+        fi
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+    - name: Install dependencies and build
+      run: |
+        cd page
+        npm install
+        PLUGIN_VERSION=${{ env.VERSION }} npm run build
+
+    - name: Create Release Archive
+      run: |
+        mkdir -p release/frontend-customizer
+        cp -r page/dist/frontend-customizer/* release/frontend-customizer/
+        cp theme-loader.js release/frontend-customizer/
+        cp install.sh release/
+        cp uninstall.sh release/
+        cp settings.json release/
+        cp README.md release/
+        cp LICENSE release/
+        chmod +x release/install.sh release/uninstall.sh
+        cd release
+        tar -czf ../mos-frontend-customizer-${{ env.VERSION }}.tar.gz .
+        cd ..
+        md5sum mos-frontend-customizer-${{ env.VERSION }}.tar.gz | awk '{print $1}' > mos-frontend-customizer-${{ env.VERSION }}.tar.gz.md5
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ env.VERSION }}
+        release_name: "Frontend Customizer - MOS v${{ env.VERSION }}"
+        body: |
+          ## Frontend Customizer - MOS v${{ env.VERSION }}
+          
+          🎨 Advanced frontend customizer with themes, branding & layout options for MOS
+          
+          ### Themes Included:
+          - 🟠 **RiDDiX** - Signature orange tech style
+          - 💚 **Hacker** - Neon green terminal vibes
+          - 💙 **Cyber Blue** - Electric blue cyberpunk
+          - 🟢 **Matrix** - Pure green terminal
+          - 🔥 **NOS Nitro** - Racing orange with rally stripes
+          - 💡 **Lumina Circuit** - Clean bright light theme
+          
+          ### Installation via MOS Hub:
+          Add template repository: `https://github.com/RiDDiX/mos-templates`
+          
+          ### Manual Installation:
+          ```bash
+          wget https://github.com/RiDDiX/mos-frontend-customizer/releases/download/v${{ env.VERSION }}/mos-frontend-customizer-${{ env.VERSION }}.tar.gz
+          tar -xzf mos-frontend-customizer-${{ env.VERSION }}.tar.gz
+          ./install.sh
+          ```
+        draft: false
+        prerelease: false
+
+    - name: Upload Release Archive
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./mos-frontend-customizer-${{ env.VERSION }}.tar.gz
+        asset_name: mos-frontend-customizer-${{ env.VERSION }}.tar.gz
+        asset_content_type: application/gzip
+
+    - name: Upload MD5
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./mos-frontend-customizer-${{ env.VERSION }}.tar.gz.md5
+        asset_name: mos-frontend-customizer-${{ env.VERSION }}.tar.gz.md5
+        asset_content_type: text/plain

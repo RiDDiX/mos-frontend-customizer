@@ -1,0 +1,25 @@
+{
+  "name": "mos-theme-riddix",
+  "version": "1.0.0",
+  "description": "RiDDiX Hacker Theme Plugin for MOS - A cyberpunk-inspired theme pack with neon accents",
+  "author": "RiDDiX",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RiDDiX/mos-theme-riddix"
+  },
+  "keywords": [
+    "mos",
+    "mos-plugin",
+    "theme",
+    "hacker",
+    "cyberpunk",
+    "dark-theme"
+  ],
+  "files": [
+    "page/",
+    "settings.json",
+    "README.md",
+    "LICENSE"
+  ]
+}
