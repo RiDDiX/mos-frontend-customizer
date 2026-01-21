@@ -5,6 +5,12 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - main
+    paths:
+      - 'page/**'
+      - 'theme-loader.js'
+      - 'functions'
 
 permissions:
   contents: write
@@ -22,21 +28,20 @@ jobs:
       with:
         node-version: '20'
 
-    - name: Get version from tag
+    - name: Get version from plugin.config.js
       id: version
       run: |
-        if [[ $GITHUB_REF == refs/tags/* ]]; then
-          VERSION=${GITHUB_REF#refs/tags/v}
-        else
-          VERSION="1.0.0"
-        fi
+        VERSION=$(node -p "require('./page/plugin.config.js').default.version")
         echo "VERSION=$VERSION" >> $GITHUB_ENV
+        echo "Detected version: $VERSION"
 
     - name: Install dependencies and build
       run: |
         cd page
         npm install
-        PLUGIN_VERSION=${{ env.VERSION }} npm run build
+        export PLUGIN_VERSION=${{ env.VERSION }}
+        npm run build
+        echo "Built with PLUGIN_VERSION=$PLUGIN_VERSION"
 
     - name: Convert line endings to LF
       run: |
@@ -123,65 +128,60 @@ jobs:
         # Build the .deb package (output to current directory)
         dpkg-deb --build ${PKG_DIR} .
 
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
+    - name: Delete existing releases
+      run: |
+        gh release delete "v${{ env.VERSION }}" --yes || true
+        git push origin :refs/tags/v${{ env.VERSION }} || true
+        gh release delete "latest" --yes || true
+        git push origin :refs/tags/latest || true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: v${{ env.VERSION }}
-        release_name: "Frontend Customizer - MOS v${{ env.VERSION }}"
-        body: |
-          ## Frontend Customizer - MOS v${{ env.VERSION }}
-          
-          🎨 Advanced frontend customizer with themes, branding & layout options for MOS
-          
-          ### Themes Included:
-          - 🟠 **RiDDiX** - Signature orange tech style
-          - 💚 **Hacker** - Neon green terminal vibes
-          - 💙 **Cyber Blue** - Electric blue cyberpunk
-          - 🟢 **Matrix** - Pure green terminal
-          - 🔥 **NOS Nitro** - Racing orange with rally stripes
-          - 💡 **Lumina Circuit** - Clean bright light theme
-          
-          ### Installation via MOS Hub:
-          Add template repository: `https://github.com/RiDDiX/mos-templates`
-          
-          ### Manual Installation:
-          ```bash
-          wget https://github.com/RiDDiX/mos-frontend-customizer/releases/download/v${{ env.VERSION }}/mos-frontend-customizer-${{ env.VERSION }}.tar.gz
-          tar -xzf mos-frontend-customizer-${{ env.VERSION }}.tar.gz
-          ./install.sh
-          ```
-        draft: false
-        prerelease: false
 
-    - name: Upload Release Archive
-      uses: actions/upload-release-asset@v1
+    - name: Create versioned Release
+      run: |
+        cat > release_notes.md << 'EOF'
+        ## Frontend Customizer - MOS
+        
+        Advanced frontend customizer with themes, branding & layout options for MOS
+        
+        ### Features:
+        - 6 Built-in themes
+        - Custom theme creator
+        - Branding options
+        - Layout settings (Header/Sidebar)
+        - Header Plugin Shortcuts
+        
+        Install via MOS Hub with template: https://github.com/RiDDiX/mos-templates
+        EOF
+        sed -i 's/^        //' release_notes.md
+        gh release create "v${{ env.VERSION }}" \
+          --title "Frontend Customizer - MOS v${{ env.VERSION }}" \
+          --notes-file release_notes.md \
+          ./mos-frontend-customizer-${{ env.VERSION }}.tar.gz \
+          ./mos-frontend-customizer-${{ env.VERSION }}.tar.gz.md5 \
+          ./mos-frontend-customizer_${{ env.VERSION }}_amd64.deb
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./mos-frontend-customizer-${{ env.VERSION }}.tar.gz
-        asset_name: mos-frontend-customizer-${{ env.VERSION }}.tar.gz
-        asset_content_type: application/gzip
 
-    - name: Upload MD5
-      uses: actions/upload-release-asset@v1
+    - name: Create latest Release
+      run: |
+        cp mos-frontend-customizer-${{ env.VERSION }}.tar.gz mos-frontend-customizer-latest.tar.gz
+        cp mos-frontend-customizer-${{ env.VERSION }}.tar.gz.md5 mos-frontend-customizer-latest.tar.gz.md5
+        cp mos-frontend-customizer_${{ env.VERSION }}_amd64.deb mos-frontend-customizer_latest_amd64.deb
+        cat > latest_notes.md << 'EOF'
+        ## Frontend Customizer - MOS (Latest)
+        
+        This is always the latest stable release.
+        
+        Quick Install:
+        wget https://github.com/RiDDiX/mos-frontend-customizer/releases/download/latest/mos-frontend-customizer_latest_amd64.deb
+        EOF
+        sed -i 's/^        //' latest_notes.md
+        gh release create "latest" \
+          --title "Frontend Customizer - MOS (Latest)" \
+          --notes-file latest_notes.md \
+          ./mos-frontend-customizer-latest.tar.gz \
+          ./mos-frontend-customizer-latest.tar.gz.md5 \
+          ./mos-frontend-customizer_latest_amd64.deb
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./mos-frontend-customizer-${{ env.VERSION }}.tar.gz.md5
-        asset_name: mos-frontend-customizer-${{ env.VERSION }}.tar.gz.md5
-        asset_content_type: text/plain
-
-    - name: Upload .deb Package
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./mos-frontend-customizer_${{ env.VERSION }}_amd64.deb
-        asset_name: mos-frontend-customizer_${{ env.VERSION }}_amd64.deb
-        asset_content_type: application/vnd.debian.binary-package
