@@ -68,6 +68,19 @@
     }
   }
 
+  // Resolve a theme id against built-ins first, then saved custom themes,
+  // so a user-created theme also applies before Vue mounts.
+  function resolveTheme(config) {
+    if (!config || !config.theme) return null;
+    if (themes[config.theme]) return themes[config.theme];
+    if (Array.isArray(config.customThemes)) {
+      return config.customThemes.find(function (t) {
+        return t && t.id === config.theme;
+      }) || null;
+    }
+    return null;
+  }
+
   function applyBranding(config) {
     if (!config || !config.customization) return;
     
@@ -116,7 +129,7 @@
     if (!config || !config.layout || config.layout.navMode !== 'header') return;
     
     const layout = config.layout;
-    const baseTheme = themes[config.theme] || themes['riddix-hacker'];
+    const baseTheme = resolveTheme(config) || themes['riddix-theme'];
     
     const applyWhenReady = () => {
       // Check if already applied
@@ -202,12 +215,12 @@
         // Add plugin links
         headerPlugins.forEach(function(pluginName) {
           const link = document.createElement('a');
-          link.href = '/plugin/' + pluginName;
+          link.href = '/plugins/' + pluginName;
           link.innerHTML = '<span class="v-icon mdi mdi-puzzle"></span><span>' + pluginName + '</span>';
           link.style.cssText = 'background: ' + baseTheme.primary + '11 !important; border-color: ' + baseTheme.primary + '33 !important;';
           link.addEventListener('click', function(e) {
             e.preventDefault();
-            window.history.pushState({}, '', '/plugin/' + pluginName);
+            window.history.pushState({}, '', '/plugins/' + pluginName);
             window.dispatchEvent(new PopStateEvent('popstate'));
           });
           headerNav.appendChild(link);
@@ -244,8 +257,8 @@
 
   function applyTheme(config) {
     if (!config || !config.theme) return;
-    
-    const baseTheme = themes[config.theme];
+
+    const baseTheme = resolveTheme(config);
     if (!baseTheme) return;
 
     // Apply custom color overrides if set

@@ -225,29 +225,6 @@
                 
                 <v-divider class="mb-4" />
                 
-                <!-- Upload Section -->
-                <div class="upload-section mb-4">
-                  <input
-                    ref="logoFileInput"
-                    type="file"
-                    accept="image/*"
-                    style="display: none"
-                    @change="handleLogoUpload"
-                  />
-                  <v-btn
-                    color="primary"
-                    variant="outlined"
-                    block
-                    :loading="uploadingLogo"
-                    @click="$refs.logoFileInput.click()"
-                  >
-                    <v-icon class="mr-2">mdi-upload</v-icon>
-                    Upload New Logo
-                  </v-btn>
-                </div>
-                
-                <v-divider class="mb-4" />
-                
                 <!-- Logo Gallery -->
                 <div class="text-subtitle-2 mb-2">Available Logos</div>
                 <div v-if="availableLogos.length === 0" class="text-center text-medium-emphasis pa-4">
@@ -278,17 +255,6 @@
                       <div class="text-caption text-truncate text-center mt-1">
                         {{ logo.name }}
                       </div>
-                      <v-btn
-                        v-if="logo.deletable"
-                        icon
-                        size="x-small"
-                        color="error"
-                        variant="text"
-                        class="delete-btn"
-                        @click.stop="deleteLogo(logo.path)"
-                      >
-                        <v-icon size="14">mdi-delete</v-icon>
-                      </v-btn>
                     </v-card>
                   </v-col>
                 </v-row>
@@ -1217,7 +1183,7 @@ const options = ref({
   enableScanlines: false,
   enableAnimations: true,
 });
-const customization = ref({
+const CUSTOMIZATION_DEFAULTS = {
   appName: '',
   logoUrl: '',
   primaryColor: '',
@@ -1225,12 +1191,12 @@ const customization = ref({
   accentColor: '',
   buttonColor: '',
   buttonTextColor: '',
-});
+};
+const customization = ref({ ...CUSTOMIZATION_DEFAULTS });
 
-// Logo Upload State
+// Logo selection state (two built-in choices + manual URL)
 const showLogoDialog = ref(false);
 const manualLogoUrl = ref('');
-const uploadingLogo = ref(false);
 const availableLogos = ref([
   { name: 'MOS White', path: '/mos_white.png', deletable: false },
   { name: 'MOS Dark', path: '/mos_dark.png', deletable: false },
@@ -1271,6 +1237,81 @@ const getAuthHeaders = () => ({
   Authorization: 'Bearer ' + localStorage.getItem('authToken'),
 });
 
+// ─── Canonical config path: normalize (load) → build → persist ───
+// One place that knows the full config shape, so no save can drop a section.
+// Accepts both the legacy nested settings.json ({ options: {...} }) and the
+// canonical flat shape ({ enableGlow, ... }).
+const normalizeConfig = (data) => {
+  if (!data || typeof data !== 'object') return null;
+  const flags = data.options && typeof data.options === 'object' ? data.options : data;
+  const layout = data.layout || {};
+  const menuOrder = Array.isArray(layout.menuOrder) && layout.menuOrder.length
+    ? layout.menuOrder
+    : JSON.parse(JSON.stringify(defaultMenuItems));
+  return {
+    theme: data.theme || null,
+    enableGlow: flags.enableGlow !== false,
+    enableScanlines: flags.enableScanlines === true,
+    enableAnimations: flags.enableAnimations !== false,
+    customization: { ...CUSTOMIZATION_DEFAULTS, ...(data.customization || {}) },
+    layout: {
+      navMode: layout.navMode || 'sidebar',
+      menuOrder,
+      headerPlugins: Array.isArray(layout.headerPlugins) ? layout.headerPlugins : [],
+    },
+    customThemes: Array.isArray(data.customThemes) ? data.customThemes : [],
+  };
+};
+
+// Assign a normalized config into reactive state (used by API + localStorage load).
+const applyLoadedConfig = (data) => {
+  const cfg = normalizeConfig(data);
+  if (!cfg) return null;
+  currentTheme.value = cfg.theme;
+  selectedTheme.value = cfg.theme;
+  options.value = {
+    enableGlow: cfg.enableGlow,
+    enableScanlines: cfg.enableScanlines,
+    enableAnimations: cfg.enableAnimations,
+  };
+  customization.value = { ...cfg.customization };
+  layoutSettings.value = { ...cfg.layout };
+  customThemes.value = cfg.customThemes;
+  return cfg;
+};
+
+// Build the canonical full config from current reactive state — never drops a section.
+const buildConfig = () => ({
+  theme: currentTheme.value,
+  enableGlow: options.value.enableGlow,
+  enableScanlines: options.value.enableScanlines,
+  enableAnimations: options.value.enableAnimations,
+  customization: { ...CUSTOMIZATION_DEFAULTS, ...customization.value },
+  layout: {
+    navMode: layoutSettings.value.navMode,
+    menuOrder: layoutSettings.value.menuOrder,
+    headerPlugins: layoutSettings.value.headerPlugins || [],
+  },
+  customThemes: customThemes.value,
+});
+
+// The single persistence path: localStorage + one API POST. Every save routes here.
+const persistConfig = async (config) => {
+  saveToLocalStorage(config);
+  try {
+    await fetch(`/api/v1/mos/plugins/settings/${PLUGIN_NAME}`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(config),
+    });
+  } catch (apiError) {
+    console.warn('Could not save to API, using localStorage only:', apiError);
+  }
+};
+
 const fetchSettings = async () => {
   try {
     const res = await fetch(`/api/v1/mos/plugins/settings/${PLUGIN_NAME}`, {
@@ -1278,32 +1319,7 @@ const fetchSettings = async () => {
     });
     if (res.ok) {
       const data = await res.json();
-      currentTheme.value = data.theme || null;
-      selectedTheme.value = data.theme || null;
-      options.value = {
-        enableGlow: data.enableGlow !== false,
-        enableScanlines: data.enableScanlines === true,
-        enableAnimations: data.enableAnimations !== false,
-      };
-      if (data.customization) {
-        customization.value = {
-          appName: data.customization.appName || '',
-          logoUrl: data.customization.logoUrl || '',
-          primaryColor: data.customization.primaryColor || '',
-          secondaryColor: data.customization.secondaryColor || '',
-          accentColor: data.customization.accentColor || '',
-        };
-      }
-      if (data.layout) {
-        layoutSettings.value = {
-          navMode: data.layout.navMode || 'sidebar',
-          menuOrder: data.layout.menuOrder || JSON.parse(JSON.stringify(defaultMenuItems)),
-          headerPlugins: data.layout.headerPlugins || [],
-        };
-      }
-      if (data.customThemes && Array.isArray(data.customThemes)) {
-        customThemes.value = data.customThemes;
-      }
+      applyLoadedConfig(data);
       if (currentTheme.value) {
         applyThemeStyles(currentTheme.value);
       }
@@ -1322,31 +1338,10 @@ const selectTheme = (themeId) => {
 const applyTheme = async () => {
   saving.value = true;
   try {
-    const config = {
-      theme: selectedTheme.value,
-      ...options.value,
-    };
-    
-    // Save to localStorage for persistence across page loads
-    saveToLocalStorage(config);
-    
-    // Also try to save to backend API
-    try {
-      await fetch(`/api/v1/mos/plugins/settings/${PLUGIN_NAME}`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(config),
-      });
-    } catch (apiError) {
-      console.warn('Could not save to API, using localStorage only:', apiError);
-    }
-
     currentTheme.value = selectedTheme.value;
+    await persistConfig(buildConfig());
     applyThemeStyles(selectedTheme.value);
-    
+
     // Force reload to apply theme globally
     window.location.reload();
   } catch (e) {
@@ -1359,33 +1354,11 @@ const applyTheme = async () => {
 const resetTheme = async () => {
   saving.value = true;
   try {
-    const config = {
-      theme: null,
-      enableGlow: true,
-      enableScanlines: false,
-      enableAnimations: true,
-    };
-    
-    // Clear from localStorage
-    saveToLocalStorage(config);
-    
-    // Also try to clear from backend API
-    try {
-      await fetch(`/api/v1/mos/plugins/settings/${PLUGIN_NAME}`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(config),
-      });
-    } catch (apiError) {
-      console.warn('Could not save to API:', apiError);
-    }
-
+    // Reset only theme + options; customization, layout and custom themes are preserved.
     currentTheme.value = null;
     selectedTheme.value = null;
     options.value = { enableGlow: true, enableScanlines: false, enableAnimations: true };
+    await persistConfig(buildConfig());
     removeThemeStyles();
   } catch (e) {
     console.error('Failed to reset theme:', e);
@@ -1397,28 +1370,7 @@ const resetTheme = async () => {
 const saveOptions = async () => {
   savingOptions.value = true;
   try {
-    const config = {
-      theme: currentTheme.value,
-      ...options.value,
-    };
-    
-    // Save to localStorage
-    saveToLocalStorage(config);
-    
-    // Also try to save to backend API
-    try {
-      await fetch(`/api/v1/mos/plugins/settings/${PLUGIN_NAME}`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(config),
-      });
-    } catch (apiError) {
-      console.warn('Could not save to API:', apiError);
-    }
-
+    await persistConfig(buildConfig());
     if (currentTheme.value) {
       applyThemeStyles(currentTheme.value);
     }
@@ -1432,27 +1384,7 @@ const saveOptions = async () => {
 const saveCustomization = async () => {
   savingCustomization.value = true;
   try {
-    const config = {
-      theme: currentTheme.value,
-      ...options.value,
-      customization: { ...customization.value },
-    };
-    
-    saveToLocalStorage(config);
-    
-    try {
-      await fetch(`/api/v1/mos/plugins/settings/${PLUGIN_NAME}`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(config),
-      });
-    } catch (apiError) {
-      console.warn('Could not save to API:', apiError);
-    }
-
+    await persistConfig(buildConfig());
     if (currentTheme.value) {
       applyThemeStyles(currentTheme.value);
     }
@@ -1465,134 +1397,26 @@ const saveCustomization = async () => {
 };
 
 const resetCustomization = () => {
-  customization.value = {
-    appName: '',
-    logoUrl: '',
-    primaryColor: '',
-    secondaryColor: '',
-    accentColor: '',
-    buttonColor: '',
-    buttonTextColor: '',
-  };
+  customization.value = { ...CUSTOMIZATION_DEFAULTS };
 };
 
-// Logo Upload Functions
+// Logo selection: built-in choices + manual URL (no server upload endpoint in MOS API)
 const selectLogo = (path) => {
   customization.value.logoUrl = path;
   showLogoDialog.value = false;
 };
 
 const selectManualLogo = () => {
-  if (manualLogoUrl.value) {
-    customization.value.logoUrl = manualLogoUrl.value;
-    manualLogoUrl.value = '';
-    showLogoDialog.value = false;
-  }
+  const logoUrl = manualLogoUrl.value.trim();
+  if (!logoUrl || logoUrl.startsWith('data:')) return;
+  customization.value.logoUrl = logoUrl;
+  manualLogoUrl.value = '';
+  showLogoDialog.value = false;
 };
 
 const clearLogo = () => {
   customization.value.logoUrl = '';
   showLogoDialog.value = false;
-};
-
-const handleLogoUpload = async (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
-  
-  uploadingLogo.value = true;
-  try {
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    const headers = getAuthHeaders();
-    const response = await fetch(`/api/v1/mos/plugins/${PLUGIN_NAME}/upload`, {
-      method: 'POST',
-      headers: {
-        ...headers,
-      },
-      body: formData,
-    });
-    
-    if (response.ok) {
-      const result = await response.json();
-      const logoPath = result.path || `/mos-plugins/${PLUGIN_NAME}/logos/${file.name}`;
-      
-      // Add to available logos
-      availableLogos.value.push({
-        name: file.name,
-        path: logoPath,
-        deletable: true,
-      });
-      
-      // Select the uploaded logo
-      customization.value.logoUrl = logoPath;
-    } else {
-      // Fallback: Use data URL for local preview
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUrl = e.target.result;
-        customization.value.logoUrl = dataUrl;
-      };
-      reader.readAsDataURL(file);
-    }
-  } catch (e) {
-    console.error('Failed to upload logo:', e);
-    // Fallback: Use data URL
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      customization.value.logoUrl = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  } finally {
-    uploadingLogo.value = false;
-    event.target.value = '';
-  }
-};
-
-const deleteLogo = async (path) => {
-  try {
-    const headers = getAuthHeaders();
-    await fetch(`/api/v1/mos/plugins/${PLUGIN_NAME}/logo?path=${encodeURIComponent(path)}`, {
-      method: 'DELETE',
-      headers,
-    });
-  } catch (e) {
-    console.error('Failed to delete logo:', e);
-  }
-  
-  // Remove from available logos
-  availableLogos.value = availableLogos.value.filter(l => l.path !== path);
-  
-  // Clear if currently selected
-  if (customization.value.logoUrl === path) {
-    customization.value.logoUrl = '';
-  }
-};
-
-const loadAvailableLogos = async () => {
-  try {
-    const headers = getAuthHeaders();
-    const response = await fetch(`/api/v1/mos/plugins/${PLUGIN_NAME}/logos`, {
-      headers,
-    });
-    
-    if (response.ok) {
-      const logos = await response.json();
-      // Merge with default logos
-      const customLogos = logos.map(l => ({
-        name: l.name || l.path.split('/').pop(),
-        path: l.path,
-        deletable: true,
-      }));
-      availableLogos.value = [
-        { name: 'MOS White', path: '/mos_white.png', deletable: false },
-        { name: 'MOS Dark', path: '/mos_dark.png', deletable: false },
-        ...customLogos,
-      ];
-    }
-  } catch (e) {
-    console.error('Failed to load available logos:', e);
-  }
 };
 
 // Custom Theme Functions
@@ -1659,29 +1483,7 @@ const saveCustomTheme = async () => {
       customThemes.value.push(newTheme);
     }
     
-    // Save to localStorage and API
-    const config = {
-      theme: currentTheme.value,
-      ...options.value,
-      customization: { ...customization.value },
-      customThemes: customThemes.value,
-    };
-    
-    saveToLocalStorage(config);
-    
-    try {
-      await fetch(`/api/v1/mos/plugins/settings/${PLUGIN_NAME}`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(config),
-      });
-    } catch (apiError) {
-      console.warn('Could not save to API:', apiError);
-    }
-    
+    await persistConfig(buildConfig());
     closeThemeEditor();
   } catch (e) {
     console.error('Failed to save custom theme:', e);
@@ -1706,28 +1508,7 @@ const deleteCustomTheme = async (themeId) => {
     removeThemeStyles();
   }
   
-  // Save to localStorage and API
-  const config = {
-    theme: currentTheme.value,
-    ...options.value,
-    customization: { ...customization.value },
-    customThemes: customThemes.value,
-  };
-  
-  saveToLocalStorage(config);
-  
-  try {
-    await fetch(`/api/v1/mos/plugins/settings/${PLUGIN_NAME}`, {
-      method: 'POST',
-      headers: {
-        ...getAuthHeaders(),
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(config),
-    });
-  } catch (apiError) {
-    console.warn('Could not save to API:', apiError);
-  }
+  await persistConfig(buildConfig());
 };
 
 const applyBranding = () => {
@@ -1775,32 +1556,7 @@ const resetLayout = () => {
 const saveLayout = async () => {
   savingLayout.value = true;
   try {
-    const config = {
-      theme: currentTheme.value,
-      ...options.value,
-      customization: { ...customization.value },
-      layout: {
-        navMode: layoutSettings.value.navMode,
-        menuOrder: layoutSettings.value.menuOrder,
-        headerPlugins: layoutSettings.value.headerPlugins || [],
-      },
-    };
-    
-    saveToLocalStorage(config);
-    
-    try {
-      await fetch(`/api/v1/mos/plugins/settings/${PLUGIN_NAME}`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(config),
-      });
-    } catch (apiError) {
-      console.warn('Could not save to API:', apiError);
-    }
-
+    await persistConfig(buildConfig());
     applyLayout();
   } catch (e) {
     console.error('Failed to save layout:', e);
@@ -1825,7 +1581,7 @@ const fetchInstalledPlugins = async () => {
           name: p.name,
           displayName: p.displayName || p.name,
           icon: p.icon || 'mdi-puzzle',
-          route: `/plugin/${p.name}`,
+          route: `/plugins/${p.name}`,
         }));
     }
   } catch (e) {
@@ -2005,12 +1761,12 @@ const applyLayout = () => {
         headerPlugins.forEach(pluginName => {
           const plugin = installedPlugins.value.find(p => p.name === pluginName);
           const link = document.createElement('a');
-          link.href = `/plugin/${pluginName}`;
+          link.href = `/plugins/${pluginName}`;
           link.innerHTML = '<span class="v-icon mdi ' + (plugin?.icon || 'mdi-puzzle') + '"></span><span>' + (plugin?.displayName || pluginName) + '</span>';
           link.style.cssText = 'background: ' + (theme?.primary || '#00ff41') + '11 !important; border-color: ' + (theme?.primary || '#00ff41') + '33 !important;';
           link.addEventListener('click', (e) => {
             e.preventDefault();
-            window.history.pushState({}, '', `/plugin/${pluginName}`);
+            window.history.pushState({}, '', `/plugins/${pluginName}`);
             window.dispatchEvent(new PopStateEvent('popstate'));
           });
           headerNav.appendChild(link);
@@ -2487,27 +2243,18 @@ onMounted(async () => {
     // First, try to load from localStorage (instant)
     const storedConfig = loadFromLocalStorage();
     if (storedConfig) {
-      currentTheme.value = storedConfig.theme || null;
-      selectedTheme.value = storedConfig.theme || null;
-      options.value = {
-        enableGlow: storedConfig.enableGlow !== false,
-        enableScanlines: storedConfig.enableScanlines === true,
-        enableAnimations: storedConfig.enableAnimations !== false,
-      };
+      applyLoadedConfig(storedConfig);
       if (currentTheme.value) {
         applyThemeStyles(currentTheme.value);
       }
     }
-    
+
     // Then try to fetch from API (may override localStorage)
     try {
       await fetchSettings();
     } catch (apiError) {
       console.warn('Could not fetch from API, using localStorage:', apiError);
     }
-    
-    // Load available logos
-    await loadAvailableLogos();
   } catch (e) {
     console.error('Failed to initialize:', e);
   } finally {
