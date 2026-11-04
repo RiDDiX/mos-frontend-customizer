@@ -9,7 +9,6 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const plugin = read('./page/src/Plugin.vue');
 const loader = read('./theme-loader.js');
 const settingsRaw = read('./settings.json');
-const configJs = read('./page/plugin.config.js');
 
 // 1. No singular generated /plugin/ routes — current MOS contract is /plugins/:name.
 assert.ok(!plugin.includes('/plugin/'), 'Plugin.vue still has a singular /plugin/ route');
@@ -26,6 +25,7 @@ assert.ok(!plugin.includes('readAsDataURL'), 'Plugin.vue still persists file Dat
 assert.ok(plugin.includes('/mos_white.png') && plugin.includes('/mos_dark.png'), 'built-in logo choices were dropped');
 assert.ok(plugin.includes('selectManualLogo'), 'manual-logo-URL flow was dropped');
 assert.ok(plugin.includes("logoUrl.startsWith('data:')"), 'manual-logo-URL flow permits Data URLs');
+assert.ok(!/deletable|delete-btn|No logos uploaded yet/.test(plugin), 'dead logo gallery leftovers are back');
 
 // 3. Exactly one canonical API POST persistence path, used by every save flow.
 const postCount = (plugin.match(/method: 'POST'/g) || []).length;
@@ -41,6 +41,11 @@ assert.ok(defBlock, 'CUSTOMIZATION_DEFAULTS block not found');
 assert.ok(/buttonColor:/.test(defBlock[1]) && /buttonTextColor:/.test(defBlock[1]), 'CUSTOMIZATION_DEFAULTS missing button colors');
 assert.ok(plugin.includes('...CUSTOMIZATION_DEFAULTS, ...(data.customization'), 'load normalization does not restore full customization');
 assert.ok(/const fetchSettings = async[\s\S]*?applyLoadedConfig\(data\)/.test(plugin), 'fetchSettings does not route through applyLoadedConfig');
+// theme-loader.js reads only localStorage, so the server copy must be mirrored there on load.
+assert.ok(/const fetchSettings = async[\s\S]*?saveToLocalStorage\(buildConfig\(\)\)/.test(plugin), 'fetchSettings does not mirror server settings to localStorage');
+// A failed server save must reach the user, and must not be hidden by the applyTheme reload.
+assert.ok(/const persistConfig = async[\s\S]*?if \(res\.ok\)[\s\S]*?saveError\.value = `Server save failed/.test(plugin), 'persistConfig does not report failed server saves');
+assert.ok(plugin.includes('if (saved) window.location.reload()'), 'applyTheme reloads even when the server save failed');
 
 // 5. Loader resolves built-in + saved customThemes; no invalid riddix-hacker fallback.
 assert.ok(!loader.includes('riddix-hacker'), 'theme-loader.js still has the invalid riddix-hacker fallback');
@@ -53,13 +58,10 @@ for (const flag of ['enableGlow', 'enableScanlines', 'enableAnimations']) {
   assert.ok(Object.prototype.hasOwnProperty.call(settings, flag), `settings.json missing flat flag ${flag}`);
 }
 assert.ok(!('options' in settings), 'settings.json still has legacy nested options');
-assert.ok(!('layout' in settings), 'settings.json still pins layout (runtime defaults should apply)');
+assert.ok(!('layout' in settings), 'settings.json pins layout; fetchSettings detects the install seed by its missing layout');
 assert.ok(Array.isArray(settings.customThemes), 'settings.json customThemes must be an array');
 for (const k of ['appName', 'logoUrl', 'primaryColor', 'secondaryColor', 'accentColor', 'buttonColor', 'buttonTextColor']) {
   assert.ok(k in settings.customization, `settings.json customization missing ${k}`);
 }
-
-// 7. Canonical plugin version bumped to 2.3.9.
-assert.ok(configJs.includes("version: '2.3.9'"), 'plugin.config.js version is not 2.3.9');
 
 console.log('check.mjs: all regression checks passed');

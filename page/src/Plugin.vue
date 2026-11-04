@@ -227,12 +227,7 @@
                 
                 <!-- Logo Gallery -->
                 <div class="text-subtitle-2 mb-2">Available Logos</div>
-                <div v-if="availableLogos.length === 0" class="text-center text-medium-emphasis pa-4">
-                  <v-icon size="48" class="mb-2">mdi-image-off</v-icon>
-                  <div>No logos uploaded yet</div>
-                  <div class="text-caption">Upload a logo or enter a URL above</div>
-                </div>
-                <v-row v-else dense>
+                <v-row dense>
                   <v-col
                     v-for="logo in availableLogos"
                     :key="logo.path"
@@ -1028,6 +1023,9 @@
         </v-card-text>
       </v-card>
     </div>
+    <v-snackbar :model-value="!!saveError" @update:model-value="saveError = ''" color="error" :timeout="8000">
+      {{ saveError }}
+    </v-snackbar>
   </div>
 </template>
 
@@ -1176,6 +1174,7 @@ const loading = ref(true);
 const saving = ref(false);
 const savingOptions = ref(false);
 const savingCustomization = ref(false);
+const saveError = ref('');
 const selectedTheme = ref(null);
 const currentTheme = ref(null);
 const options = ref({
@@ -1197,10 +1196,10 @@ const customization = ref({ ...CUSTOMIZATION_DEFAULTS });
 // Logo selection state (two built-in choices + manual URL)
 const showLogoDialog = ref(false);
 const manualLogoUrl = ref('');
-const availableLogos = ref([
-  { name: 'MOS White', path: '/mos_white.png', deletable: false },
-  { name: 'MOS Dark', path: '/mos_dark.png', deletable: false },
-]);
+const availableLogos = [
+  { name: 'MOS White', path: '/mos_white.png' },
+  { name: 'MOS Dark', path: '/mos_dark.png' },
+];
 
 const defaultMenuItems = [
   { id: 'dashboard', title: 'Dashboard', icon: 'mdi-view-dashboard', route: '/dashboard', visible: true },
@@ -1296,10 +1295,12 @@ const buildConfig = () => ({
 });
 
 // The single persistence path: localStorage + one API POST. Every save routes here.
+// Returns false when only localStorage was updated; the snackbar tells the user.
 const persistConfig = async (config) => {
   saveToLocalStorage(config);
+  let reason;
   try {
-    await fetch(`/api/v1/mos/plugins/settings/${PLUGIN_NAME}`, {
+    const res = await fetch(`/api/v1/mos/plugins/settings/${PLUGIN_NAME}`, {
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
@@ -1307,9 +1308,17 @@ const persistConfig = async (config) => {
       },
       body: JSON.stringify(config),
     });
+    if (res.ok) {
+      saveError.value = '';
+      return true;
+    }
+    reason = `HTTP ${res.status}`;
   } catch (apiError) {
-    console.warn('Could not save to API, using localStorage only:', apiError);
+    reason = 'network error';
   }
+  saveError.value = `Server save failed (${reason}). Settings are saved in this browser only.`;
+  console.warn('Could not save to API, using localStorage only:', reason);
+  return false;
 };
 
 const fetchSettings = async () => {
@@ -1319,7 +1328,18 @@ const fetchSettings = async () => {
     });
     if (res.ok) {
       const data = await res.json();
-      applyLoadedConfig(data);
+      const local = loadFromLocalStorage();
+      // Every save writes `layout`; the settings.json seed MOS copies on (re)install has none.
+      // Browser copy with layout + server copy without = server was reset: keep the browser copy.
+      // shortcut: a pre-2.3.9 save (no layout) from another browser loses to this one once; add a seed marker if that matters.
+      if (local?.layout && !data?.layout) {
+        applyLoadedConfig(local);
+        await persistConfig(buildConfig());
+      } else {
+        applyLoadedConfig(data);
+        // theme-loader.js reads only localStorage, so mirror the server copy there.
+        saveToLocalStorage(buildConfig());
+      }
       if (currentTheme.value) {
         applyThemeStyles(currentTheme.value);
       }
@@ -1339,11 +1359,11 @@ const applyTheme = async () => {
   saving.value = true;
   try {
     currentTheme.value = selectedTheme.value;
-    await persistConfig(buildConfig());
+    const saved = await persistConfig(buildConfig());
     applyThemeStyles(selectedTheme.value);
 
-    // Force reload to apply theme globally
-    window.location.reload();
+    // Force reload to apply theme globally; skip it on a failed server save so the error stays visible
+    if (saved) window.location.reload();
   } catch (e) {
     console.error('Failed to apply theme:', e);
   } finally {
@@ -2304,18 +2324,6 @@ onMounted(async () => {
 .logo-card.selected {
   border-color: var(--v-theme-primary);
   background: rgba(var(--v-theme-primary), 0.1);
-}
-
-.logo-card .delete-btn {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.logo-card:hover .delete-btn {
-  opacity: 1;
 }
 
 .logo-preview {
