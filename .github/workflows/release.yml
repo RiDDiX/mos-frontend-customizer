@@ -85,7 +85,7 @@ jobs:
         
         printf '%s\n' "Package: ${PKG_NAME}" "Version: ${PKG_VERSION}" "Section: web" "Priority: optional" "Architecture: amd64" "Maintainer: RiDDiX <info@riddix.de>" "Description: Frontend Customizer - MOS" " Advanced frontend customizer with themes, branding & layout options for MOS." > ${PKG_DIR}/DEBIAN/control
         
-        printf '%s\n' '#!/bin/bash' 'INDEX_FILE="/var/www/index.html"' 'LOADER_SCRIPT='"'"'<script src="/mos-plugins/frontend-customizer/theme-loader.js"></script>'"'"'' 'if [ -f "$INDEX_FILE" ]; then' '  if ! grep -q "frontend-customizer/theme-loader.js" "$INDEX_FILE"; then' '    sed -i '"'"'s|<head>|<head>\n    '"'"'"$LOADER_SCRIPT"'"'"'|'"'"' "$INDEX_FILE"' '  fi' 'fi' 'chmod -R 755 /var/www/mos-plugins/frontend-customizer' 'exit 0' > ${PKG_DIR}/DEBIAN/postinst
+        printf '%s\n' '#!/bin/bash' 'FN=/var/www/mos-plugins/frontend-customizer/functions' 'if [ -f "$FN" ]; then source "$FN"; install; fi' 'exit 0' > ${PKG_DIR}/DEBIAN/postinst
         chmod 755 ${PKG_DIR}/DEBIAN/postinst
         
         printf '%s\n' '#!/bin/bash' 'INDEX_FILE="/var/www/index.html"' 'if [ -f "$INDEX_FILE" ]; then' '  sed -i '"'"'/frontend-customizer\/theme-loader.js/d'"'"' "$INDEX_FILE"' 'fi' 'exit 0' > ${PKG_DIR}/DEBIAN/prerm
@@ -119,6 +119,8 @@ jobs:
         - Export, import and reset settings
         
         Install via MOS Hub with template: https://github.com/RiDDiX/mos-templates
+        
+        - After updating, hard-reload once (Ctrl+F5 / Cmd+Shift+R) so the browser drops cached plugin files
         EOF
         sed -i 's/^        //' release_notes.md
         gh release create "v${{ env.VERSION }}" \

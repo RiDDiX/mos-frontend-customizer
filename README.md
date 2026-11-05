@@ -1,7 +1,7 @@
 # 🎨 Frontend Customizer - MOS
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.4.0-ff6b00?style=for-the-badge&labelColor=0a0a0a" alt="Version">
+  <img src="https://img.shields.io/badge/Version-2.4.1-ff6b00?style=for-the-badge&labelColor=0a0a0a" alt="Version">
   <img src="https://img.shields.io/badge/MOS-Compatible-00d4ff?style=for-the-badge&labelColor=0a0a0a" alt="MOS Compatible">
   <img src="https://img.shields.io/badge/License-MIT-7b68ee?style=for-the-badge&labelColor=0a0a0a" alt="License">
 </p>
@@ -124,7 +124,7 @@ tar -xzf mos-frontend-customizer.tar.gz
 Then add this line to `/var/www/index.html` inside the `<head>` tag:
 
 ```html
-<script src="/mos-plugins/frontend-customizer/theme-loader.js"></script>
+<script src="/_plugins/frontend-customizer/theme-loader.js"></script>
 ```
 
 ---
@@ -155,6 +155,7 @@ Reordering menu entries applies while menu groups are off.
 
 **Upgrading from 2.3.x:** the plugin's own header navigation and header plugin shortcuts are
 gone. Use the native horizontal menu in your MOS profile instead. Hidden menu entries are kept.
+After updating, hard-reload once (Ctrl+F5 / Cmd+Shift+R) so the browser drops the cached old theme-loader.js.
 
 ## 📁 Project Structure
 

@@ -3,7 +3,7 @@
  *
  * The one engine that applies every customization: theme CSS, menu, appearance,
  * custom CSS and branding. install.sh / postinst add it as the first child of <head>:
- * <script src="/mos-plugins/frontend-customizer/theme-loader.js"></script>
+ * <script src="/_plugins/frontend-customizer/theme-loader.js"></script>
  * It applies the config saved in localStorage before Vue renders, keeps branding in
  * sync while MOS renders, and exposes window.FrontendCustomizer for the plugin page.
  * Add ?nocss to the URL to skip custom CSS (safe mode).

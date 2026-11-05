@@ -1124,7 +1124,7 @@ import { ref, computed, onMounted } from 'vue';
 
 const PLUGIN_NAME = 'frontend-customizer';
 const STORAGE_KEY = 'frontend-customizer-config';
-const ENGINE_SRC = '/mos-plugins/frontend-customizer/theme-loader.js';
+const ENGINE_SRC = '/_plugins/frontend-customizer/theme-loader.js';
 const pluginVersion = typeof __PLUGIN_VERSION__ !== 'undefined' ? __PLUGIN_VERSION__ : '1.0.0';
 
 // theme-loader.js is the one engine that applies everything; built-in themes and menu entries come from it.
@@ -1132,15 +1132,26 @@ let engine = null;
 const builtInThemes = ref([]);
 const menuItems = ref([]);
 
+let engineError = 'theme-loader.js could not be loaded. Reinstall the plugin, then reload this page.';
+
 const loadEngine = () => new Promise((resolve) => {
   if (window.FrontendCustomizer) {
     resolve(window.FrontendCustomizer);
     return;
   }
+  const stale = () => {
+    engineError = 'Your browser still has an old theme-loader.js in its cache. Do a hard reload (Ctrl+F5 / Cmd+Shift+R) or clear the site cache, then reopen this page.';
+    resolve(null);
+  };
+  // No global means the browser ran a stale cached 2.3.x loader; injecting it again would hang the page.
+  if (document.querySelector('script[src*="frontend-customizer/theme-loader.js"]')) {
+    stale();
+    return;
+  }
   // index.html normally loads it; load it here if that tag is missing.
   const script = document.createElement('script');
-  script.src = ENGINE_SRC;
-  script.onload = () => resolve(window.FrontendCustomizer || null);
+  script.src = `${ENGINE_SRC}?v=${pluginVersion}`;
+  script.onload = () => (window.FrontendCustomizer ? resolve(window.FrontendCustomizer) : stale());
   script.onerror = () => resolve(null);
   document.head.appendChild(script);
 });
@@ -1410,7 +1421,7 @@ const preview = () => {
 const persistConfig = async (config) => {
   if (!engine) {
     // Without the engine the menu list is empty, so a save would drop menu settings.
-    saveError.value = 'theme-loader.js could not be loaded. Reinstall the plugin, then reload this page.';
+    saveError.value = engineError;
     return false;
   }
   saveToLocalStorage(config);
@@ -1722,7 +1733,7 @@ onMounted(async () => {
       builtInThemes.value = engine.themes;
       menuItems.value = engine.menuItems;
     } else {
-      saveError.value = 'theme-loader.js could not be loaded. Reinstall the plugin, then reload this page.';
+      saveError.value = engineError;
     }
 
     // First, load from localStorage (instant)

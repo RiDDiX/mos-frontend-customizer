@@ -11,7 +11,6 @@ PLUGIN_DIR="/var/www/mos-plugins"
 FRONTEND_DIR="/var/www"
 INDEX_FILE="$FRONTEND_DIR/index.html"
 BACKUP_FILE="$FRONTEND_DIR/index.html.backup"
-LOADER_SCRIPT='<script src="/mos-plugins/frontend-customizer/theme-loader.js"></script>'
 
 # Colors
 RED='\033[0;31m'
@@ -22,7 +21,7 @@ NC='\033[0m'
 
 echo -e "${CYAN}"
 echo "╔═══════════════════════════════════════════════════════════╗"
-echo "║        Frontend Customizer - MOS Installer v2.2.0         ║"
+echo "║        Frontend Customizer - MOS Installer v2.4.1         ║"
 echo "║     Themes, Branding & Layout Options for MOS             ║"
 echo "╚═══════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
@@ -73,12 +72,18 @@ fi
 # Patch index.html
 echo -e "${GREEN}[3/3] Patching index.html...${NC}"
 
-# Check if already patched
+# Versioned src so browsers drop a cached older loader after an update
+MANIFEST="$SCRIPT_DIR/frontend-customizer/manifest.json"
+[ -f "$MANIFEST" ] || MANIFEST="$PLUGIN_DIR/frontend-customizer/manifest.json"
+VERSION=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$MANIFEST" 2>/dev/null | head -n 1)
+[[ "$VERSION" =~ ^[0-9A-Za-z.+-]+$ ]] || VERSION=0
+WANT="/_plugins/frontend-customizer/theme-loader.js?v=$VERSION"
 if grep -q "frontend-customizer/theme-loader.js" "$INDEX_FILE"; then
-    echo -e "${YELLOW}      Already patched, skipping${NC}"
+    sed -i 's|src="[^"]*frontend-customizer/theme-loader\.js[^"]*"|src="'"$WANT"'"|' "$INDEX_FILE"
+    echo -e "      Updated theme loader script to v$VERSION"
 else
     # Insert the loader script after <head> tag
-    sed -i 's|<head>|<head>\n    '"$LOADER_SCRIPT"'|' "$INDEX_FILE"
+    sed -i 's|<head>|<head>\n    <script src="'"$WANT"'"></script>|' "$INDEX_FILE"
     echo -e "      Injected theme loader script"
 fi
 
