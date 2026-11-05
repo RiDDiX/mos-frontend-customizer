@@ -39,7 +39,7 @@
                     {{ theme.icon }}
                   </v-icon>
                   <h3 :style="{ color: theme.primary }">{{ theme.name }}</h3>
-                  <p class="text-caption mt-2" :style="{ color: theme.textColor }">
+                  <p class="text-caption mt-2" :style="{ color: theme.textColor || (theme.isLight ? '#000000' : '#e0e0e0') }">
                     {{ theme.description }}
                   </p>
                   <div class="color-preview mt-3">
@@ -186,6 +186,52 @@
                 </div>
               </div>
             </v-col>
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model="customization.faviconUrl"
+                label="Browser Tab Icon URL"
+                placeholder="/mos_icon.svg"
+                hint="http(s) URL or path on this server"
+                persistent-hint
+                prepend-inner-icon="mdi-star-box-outline"
+                variant="outlined"
+                density="comfortable"
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model="customization.titlePrefix"
+                label="Browser Tab Title Prefix"
+                placeholder="My NAS"
+                hint="Shown before the page title, e.g. My NAS | Dashboard"
+                persistent-hint
+                prepend-inner-icon="mdi-tab"
+                variant="outlined"
+                density="comfortable"
+                maxlength="32"
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-switch
+                v-model="customization.loginBranding"
+                label="Use logo, app name and message on the login page"
+                color="primary"
+                hide-details
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model="customization.loginMessage"
+                :disabled="!customization.loginBranding"
+                label="Login Page Message"
+                placeholder="Welcome back"
+                prepend-inner-icon="mdi-message-text-outline"
+                variant="outlined"
+                density="comfortable"
+                maxlength="200"
+                hide-details
+              />
+            </v-col>
           </v-row>
           
           <!-- Logo Selection Dialog -->
@@ -227,7 +273,7 @@
                 
                 <!-- Logo Gallery -->
                 <div class="text-subtitle-2 mb-2">Available Logos</div>
-                <v-row dense>
+                <v-row density="compact">
                   <v-col
                     v-for="logo in availableLogos"
                     :key="logo.path"
@@ -456,190 +502,94 @@
 
       <v-card class="mb-4 pa-0">
         <v-card-title>
-          <v-icon class="mr-2">mdi-page-layout-header</v-icon>
-          Layout Settings
+          <v-icon class="mr-2">mdi-image-filter-hdr</v-icon>
+          Appearance
         </v-card-title>
         <v-card-text class="pa-4">
           <v-row>
             <v-col cols="12">
-              <div class="text-subtitle-2 mb-2">Navigation Mode</div>
-              <v-btn-toggle
-                v-model="layoutSettings.navMode"
-                mandatory
-                color="primary"
-                class="mb-4"
-              >
-                <v-btn value="sidebar" prepend-icon="mdi-dock-left">
-                  Sidebar (Classic)
-                </v-btn>
-                <v-btn value="header" prepend-icon="mdi-dock-top">
-                  Header Bar
-                </v-btn>
-              </v-btn-toggle>
-            </v-col>
-          </v-row>
-
-          <v-divider class="my-4" />
-
-          <v-row>
-            <v-col cols="12">
-              <div class="text-subtitle-2 mb-2">Menu Items Order</div>
-              <p class="text-caption text-medium-emphasis mb-3">
-                Drag to reorder menu items (changes apply after save)
-              </p>
-              <div class="menu-order-list">
-                <div
-                  v-for="(item, index) in layoutSettings.menuOrder"
-                  :key="item.id"
-                  class="menu-order-item d-flex align-center pa-2 mb-1 rounded"
-                  draggable="true"
-                  @dragstart="onDragStart($event, index)"
-                  @dragover.prevent
-                  @drop="onDrop($event, index)"
-                  :style="{
-                    background: 'rgba(var(--v-theme-primary), 0.1)',
-                    border: '1px solid rgba(var(--v-theme-primary), 0.3)',
-                    cursor: 'grab'
-                  }"
-                >
-                  <v-icon size="small" class="mr-2 drag-handle">mdi-drag</v-icon>
-                  <v-icon size="small" class="mr-2">{{ item.icon }}</v-icon>
-                  <span class="text-body-2">{{ item.title }}</span>
-                  <v-spacer />
-                  <v-switch
-                    :model-value="item.visible"
-                    @update:model-value="toggleMenuItemVisibility(item)"
-                    hide-details
-                    density="compact"
-                    color="primary"
-                  />
-                </div>
-              </div>
-            </v-col>
-          </v-row>
-
-          <v-divider class="my-4" />
-
-          <v-row>
-            <v-col cols="12">
-              <div class="text-subtitle-2 mb-2">Header Plugin Shortcuts</div>
-              <p class="text-caption text-medium-emphasis mb-3">
-                Add individual plugins directly to the header menu instead of going through "Plugins"
-              </p>
-              <v-btn
-                v-if="installedPlugins.length === 0"
+              <v-text-field
+                v-model="appearance.backgroundUrl"
+                label="Background Image URL"
+                placeholder="https://example.com/wallpaper.jpg"
+                hint="http(s) URL or path on this server. Empty keeps the theme background."
+                persistent-hint
+                prepend-inner-icon="mdi-image"
                 variant="outlined"
-                size="small"
-                :loading="loadingPlugins"
-                @click="fetchInstalledPlugins"
-                class="mb-3"
-              >
-                <v-icon start>mdi-refresh</v-icon>
-                Load Available Plugins
-              </v-btn>
-              <div v-if="installedPlugins.length > 0" class="header-plugins-list">
-                <div
-                  v-for="plugin in installedPlugins"
-                  :key="plugin.name"
-                  class="header-plugin-item d-flex align-center pa-2 mb-1 rounded"
-                  :style="{
-                    background: layoutSettings.headerPlugins?.includes(plugin.name) 
-                      ? 'rgba(var(--v-theme-primary), 0.2)' 
-                      : 'rgba(var(--v-theme-surface), 0.3)',
-                    border: layoutSettings.headerPlugins?.includes(plugin.name)
-                      ? '1px solid rgba(var(--v-theme-primary), 0.5)'
-                      : '1px solid rgba(var(--v-theme-primary), 0.1)'
-                  }"
-                >
-                  <v-icon size="small" class="mr-2">{{ plugin.icon || 'mdi-puzzle' }}</v-icon>
-                  <span class="text-body-2">{{ plugin.displayName || plugin.name }}</span>
-                  <v-spacer />
-                  <v-switch
-                    :model-value="layoutSettings.headerPlugins?.includes(plugin.name)"
-                    @update:model-value="toggleHeaderPlugin(plugin.name, $event)"
-                    hide-details
-                    density="compact"
-                    color="primary"
-                  />
-                </div>
-              </div>
+                density="comfortable"
+                clearable
+              />
             </v-col>
-          </v-row>
-
-          <v-divider class="my-4" />
-
-          <v-row>
-            <v-col cols="12">
-              <div class="text-subtitle-2 mb-3">Live Preview</div>
-              <div 
-                class="preview-container rounded pa-3"
-                :style="{
-                  background: getCurrentTheme()?.background || '#0d0d0d',
-                  border: `1px solid ${getCurrentTheme()?.primary || '#00ff41'}`,
-                  minHeight: '120px'
-                }"
-              >
-                <div 
-                  v-if="layoutSettings.navMode === 'header'"
-                  class="preview-header d-flex align-center pa-2 rounded mb-2"
-                  :style="{
-                    background: getCurrentTheme()?.surface || '#1a1a1a',
-                    borderBottom: `2px solid ${getCurrentTheme()?.primary || '#00ff41'}`
-                  }"
-                >
-                  <div class="preview-logo mr-2" :style="{ color: getCurrentTheme()?.primary }">
-                    <v-icon size="x-small">mdi-server</v-icon>
-                  </div>
-                  <span class="text-caption mr-4" :style="{ color: getCurrentTheme()?.primary }">
-                    {{ customization.appName || 'MOS' }}
-                  </span>
-                  <div class="d-flex flex-wrap gap-1">
-                    <span 
-                      v-for="item in layoutSettings.menuOrder.filter(m => m.visible).slice(0, 6)"
-                      :key="item.id"
-                      class="preview-menu-item px-2 py-1 rounded"
-                      :style="{
-                        fontSize: '9px',
-                        color: getCurrentTheme()?.textColor || '#b0b0b0',
-                        background: 'rgba(255,255,255,0.05)'
-                      }"
-                    >
-                      <v-icon size="8" class="mr-1">{{ item.icon }}</v-icon>
-                      {{ item.title }}
-                    </span>
-                  </div>
-                </div>
-                <div 
-                  v-else
-                  class="preview-sidebar d-flex"
-                >
-                  <div 
-                    class="preview-sidebar-nav pa-2 rounded mr-2"
-                    :style="{
-                      background: getCurrentTheme()?.surface || '#1a1a1a',
-                      width: '80px',
-                      borderRight: `2px solid ${getCurrentTheme()?.primary || '#00ff41'}`
-                    }"
-                  >
-                    <div 
-                      v-for="item in layoutSettings.menuOrder.filter(m => m.visible).slice(0, 5)"
-                      :key="item.id"
-                      class="preview-sidebar-item mb-1 pa-1 rounded"
-                      :style="{
-                        fontSize: '8px',
-                        color: getCurrentTheme()?.textColor || '#b0b0b0',
-                        background: 'rgba(255,255,255,0.03)'
-                      }"
-                    >
-                      <v-icon size="8" class="mr-1">{{ item.icon }}</v-icon>
-                      {{ item.title.slice(0, 6) }}
-                    </div>
-                  </div>
-                  <div class="preview-content flex-grow-1 pa-2 rounded" :style="{ background: 'rgba(255,255,255,0.02)' }">
-                    <div class="text-caption" :style="{ color: getCurrentTheme()?.textColor, opacity: 0.5 }">Content Area</div>
-                  </div>
-                </div>
-              </div>
+            <v-col cols="12" md="6">
+              <v-slider
+                v-model="appearance.backgroundBlur"
+                :disabled="!appearance.backgroundUrl"
+                label="Background Blur"
+                :min="0"
+                :max="20"
+                :step="1"
+                thumb-label
+                color="primary"
+                hide-details
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-slider
+                v-model="appearance.backgroundDim"
+                :disabled="!appearance.backgroundUrl"
+                label="Background Dim (%)"
+                :min="0"
+                :max="80"
+                :step="5"
+                thumb-label
+                color="primary"
+                hide-details
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-select
+                v-model="appearance.fontFamily"
+                :items="fontOptions"
+                label="Font"
+                prepend-inner-icon="mdi-format-font"
+                variant="outlined"
+                density="comfortable"
+                hide-details
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-slider
+                v-model="appearance.uiScale"
+                label="UI Scale (%)"
+                :min="80"
+                :max="125"
+                :step="5"
+                thumb-label
+                color="primary"
+                hide-details
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-select
+                v-model="appearance.cardStyle"
+                :items="cardStyleOptions"
+                label="Card Style"
+                prepend-inner-icon="mdi-card-outline"
+                variant="outlined"
+                density="comfortable"
+                hide-details
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-select
+                v-model="radiusModel"
+                :items="radiusOptions"
+                label="Corner Radius (cards, buttons, alerts)"
+                prepend-inner-icon="mdi-rounded-corner"
+                variant="outlined"
+                density="comfortable"
+                hide-details
+              />
             </v-col>
           </v-row>
         </v-card-text>
@@ -647,17 +597,112 @@
         <v-card-actions class="pa-4">
           <v-btn
             variant="text"
-            @click="resetLayout"
+            @click="resetAppearance"
           >
-            Reset Layout
+            Reset to Defaults
           </v-btn>
           <v-spacer />
           <v-btn
             color="primary"
-            :loading="savingLayout"
-            @click="saveLayout"
+            :loading="savingAppearance"
+            @click="saveAppearance"
           >
-            Apply Layout
+            Save Appearance
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+
+      <v-card class="mb-4 pa-0">
+        <v-card-title>
+          <v-icon class="mr-2">mdi-language-css3</v-icon>
+          Custom CSS
+        </v-card-title>
+        <v-card-text class="pa-4">
+          <p class="text-caption text-medium-emphasis mb-3">
+            Added after all theme styles on every MOS page, including the login page.
+            If something breaks, open MOS with <code>?nocss</code> at the end of the URL to load it without this CSS.
+          </p>
+          <v-textarea
+            v-model="appearance.customCss"
+            label="CSS"
+            placeholder=".v-app-bar { border-bottom: 2px solid #ff6b00; }"
+            rows="8"
+            auto-grow
+            variant="outlined"
+            spellcheck="false"
+            class="custom-css-input"
+            :maxlength="CUSTOM_CSS_MAX"
+            counter
+          />
+        </v-card-text>
+        <v-divider />
+        <v-card-actions class="pa-4">
+          <v-spacer />
+          <v-btn
+            color="primary"
+            :loading="savingAppearance"
+            @click="saveAppearance"
+          >
+            Save CSS
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+
+      <v-card class="mb-4 pa-0">
+        <v-card-title>
+          <v-icon class="mr-2">mdi-menu</v-icon>
+          Menu
+        </v-card-title>
+        <v-card-text class="pa-4">
+          <p class="text-caption text-medium-emphasis mb-3">
+            Hide or drag to reorder the main menu entries. Changes show right away and are kept after "Save Menu".
+            Sidebar or header menu and menu groups are MOS settings in your profile; reordering applies while menu groups are off.
+          </p>
+          <div class="menu-order-list">
+            <div
+              v-for="(item, index) in menuOrder"
+              :key="item.id"
+              class="menu-order-item d-flex align-center pa-2 mb-1 rounded"
+              draggable="true"
+              @dragstart="onDragStart($event, index)"
+              @dragover.prevent
+              @drop="onDrop($event, index)"
+              :style="{
+                background: 'rgba(var(--v-theme-primary), 0.1)',
+                border: '1px solid rgba(var(--v-theme-primary), 0.3)',
+                cursor: 'grab'
+              }"
+            >
+              <v-icon size="small" class="mr-2 drag-handle">mdi-drag</v-icon>
+              <v-icon size="small" class="mr-2">{{ item.icon }}</v-icon>
+              <span class="text-body-2">{{ item.title }}</span>
+              <v-spacer />
+              <v-switch
+                :model-value="item.visible"
+                @update:model-value="toggleMenuItemVisibility(item)"
+                :aria-label="`Show ${item.title} in the menu`"
+                hide-details
+                density="compact"
+                color="primary"
+              />
+            </div>
+          </div>
+        </v-card-text>
+        <v-divider />
+        <v-card-actions class="pa-4">
+          <v-btn
+            variant="text"
+            @click="resetMenu"
+          >
+            Reset Menu
+          </v-btn>
+          <v-spacer />
+          <v-btn
+            color="primary"
+            :loading="savingMenu"
+            @click="saveMenu"
+          >
+            Save Menu
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -998,13 +1043,58 @@
         </v-card-text>
       </v-card>
 
+      <v-card class="mb-4 pa-0">
+        <v-card-title>
+          <v-icon class="mr-2">mdi-backup-restore</v-icon>
+          Backup
+        </v-card-title>
+        <v-card-text class="pa-4">
+          <p class="text-caption text-medium-emphasis">
+            Export all settings as a JSON file, or import one from another server.
+            Only import files you trust: custom CSS in the file runs on every MOS page.
+          </p>
+          <input
+            ref="importInput"
+            type="file"
+            accept="application/json,.json"
+            style="display: none"
+            @change="importSettings"
+          />
+        </v-card-text>
+        <v-divider />
+        <v-card-actions class="pa-4">
+          <v-btn
+            color="error"
+            variant="text"
+            @click="resetAll"
+          >
+            Reset Everything
+          </v-btn>
+          <v-spacer />
+          <v-btn
+            variant="outlined"
+            prepend-icon="mdi-upload"
+            @click="importInput.click()"
+          >
+            Import
+          </v-btn>
+          <v-btn
+            color="primary"
+            prepend-icon="mdi-download"
+            @click="exportSettings"
+          >
+            Export
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+
       <v-card class="pa-0">
         <v-card-title>
           <v-icon class="mr-2">mdi-information</v-icon>
           About
         </v-card-title>
         <v-card-text class="pa-4">
-          <v-row dense>
+          <v-row density="compact">
             <v-col cols="6" md="3">
               <div class="text-caption text-medium-emphasis"><strong>Version</strong></div>
               <div class="text-body-2">{{ pluginVersion }}</div>
@@ -1030,116 +1120,37 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, inject } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 
 const PLUGIN_NAME = 'frontend-customizer';
 const STORAGE_KEY = 'frontend-customizer-config';
+const ENGINE_SRC = '/mos-plugins/frontend-customizer/theme-loader.js';
 const pluginVersion = typeof __PLUGIN_VERSION__ !== 'undefined' ? __PLUGIN_VERSION__ : '1.0.0';
 
-const themes = ref([
-  {
-    id: 'riddix-theme',
-    name: 'RiDDiX',
-    description: 'Signature orange tech style - the original',
-    icon: 'mdi-alpha-r-circle',
-    primary: '#ff6b00',
-    secondary: '#cc5500',
-    accent: '#ffaa00',
-    background: '#0d0d0d',
-    surface: '#1a1a1a',
-    textColor: '#e0e0e0',
-    buttonColor: '#ff6b00',
-    buttonTextColor: '#ffffff',
-    isBuiltIn: true,
-  },
-  {
-    id: 'hacker-green',
-    name: 'Hacker',
-    description: 'Neon green on deep black - classic terminal vibes',
-    icon: 'mdi-console',
-    primary: '#00ff41',
-    secondary: '#008f11',
-    accent: '#00ff41',
-    background: '#0d0d0d',
-    surface: '#1a1a1a',
-    textColor: '#b0b0b0',
-    buttonColor: '#00ff41',
-    buttonTextColor: '#000000',
-    isBuiltIn: true,
-  },
-  {
-    id: 'cyber-blue',
-    name: 'Cyber Blue',
-    description: 'Electric blue cyberpunk aesthetic',
-    icon: 'mdi-chip',
-    primary: '#00d4ff',
-    secondary: '#0066cc',
-    accent: '#ff00ff',
-    background: '#0a0a14',
-    surface: '#14141e',
-    textColor: '#a0a0b0',
-    buttonColor: '#00d4ff',
-    buttonTextColor: '#000000',
-    isBuiltIn: true,
-  },
-  {
-    id: 'matrix-green',
-    name: 'Matrix',
-    description: 'Pure green terminal - enter the matrix',
-    icon: 'mdi-matrix',
-    primary: '#00ff00',
-    secondary: '#003300',
-    accent: '#00ff00',
-    background: '#000000',
-    buttonColor: '#00ff00',
-    buttonTextColor: '#000000',
-    surface: '#0a0a0a',
-    textColor: '#00cc00',
-    isBuiltIn: true,
-  },
-  {
-    id: 'nos-nitro',
-    name: 'NOS Nitro',
-    description: 'Blazing fast - orange flames & nitro boost',
-    icon: 'mdi-fire',
-    primary: '#ff6600',
-    secondary: '#ff3300',
-    accent: '#ffcc00',
-    background: '#0a0505',
-    surface: '#1a0a0a',
-    textColor: '#ffaa66',
-    buttonColor: '#ff6600',
-    buttonTextColor: '#ffffff',
-    hasRallyStripes: true,
-    isBuiltIn: true,
-  },
-  {
-    id: 'lumina-circuit',
-    name: 'Lumina Circuit',
-    description: 'Clean & bright - precision engineering in light',
-    icon: 'mdi-lightbulb-on',
-    primary: '#0066ff',
-    secondary: '#00a8e8',
-    accent: '#7c3aed',
-    background: '#f0f4f8',
-    surface: '#ffffff',
-    textColor: '#000000',
-    buttonColor: '#0066ff',
-    buttonTextColor: '#ffffff',
-    isLight: true,
-    isBuiltIn: true,
-  },
-]);
+// theme-loader.js is the one engine that applies everything; built-in themes and menu entries come from it.
+let engine = null;
+const builtInThemes = ref([]);
+const menuItems = ref([]);
+
+const loadEngine = () => new Promise((resolve) => {
+  if (window.FrontendCustomizer) {
+    resolve(window.FrontendCustomizer);
+    return;
+  }
+  // index.html normally loads it; load it here if that tag is missing.
+  const script = document.createElement('script');
+  script.src = ENGINE_SRC;
+  script.onload = () => resolve(window.FrontendCustomizer || null);
+  script.onerror = () => resolve(null);
+  document.head.appendChild(script);
+});
 
 const customThemes = ref([]);
 
-const allThemes = computed(() => [...themes.value, ...customThemes.value]);
+const allThemes = computed(() => [...builtInThemes.value, ...customThemes.value]);
 
 // Custom Theme Editor State
-const showThemeEditor = ref(false);
-const editingThemeId = ref(null);
-const savingCustomTheme = ref(false);
-const themeEditor = ref({
+const THEME_EDITOR_DEFAULTS = {
   name: '',
   description: '',
   primary: '#ff6b00',
@@ -1150,7 +1161,11 @@ const themeEditor = ref({
   textColor: '#e0e0e0',
   buttonColor: '#ff6b00',
   buttonTextColor: '#ffffff',
-});
+};
+const showThemeEditor = ref(false);
+const editingThemeId = ref(null);
+const savingCustomTheme = ref(false);
+const themeEditor = ref({ ...THEME_EDITOR_DEFAULTS });
 
 const saveToLocalStorage = (config) => {
   try {
@@ -1174,14 +1189,17 @@ const loading = ref(true);
 const saving = ref(false);
 const savingOptions = ref(false);
 const savingCustomization = ref(false);
+const savingAppearance = ref(false);
+const savingMenu = ref(false);
 const saveError = ref('');
 const selectedTheme = ref(null);
 const currentTheme = ref(null);
-const options = ref({
+const OPTION_DEFAULTS = {
   enableGlow: true,
   enableScanlines: false,
   enableAnimations: true,
-});
+};
+const options = ref({ ...OPTION_DEFAULTS });
 const CUSTOMIZATION_DEFAULTS = {
   appName: '',
   logoUrl: '',
@@ -1190,8 +1208,48 @@ const CUSTOMIZATION_DEFAULTS = {
   accentColor: '',
   buttonColor: '',
   buttonTextColor: '',
+  faviconUrl: '',
+  titlePrefix: '',
+  loginBranding: false,
+  loginMessage: '',
 };
 const customization = ref({ ...CUSTOMIZATION_DEFAULTS });
+const APPEARANCE_DEFAULTS = {
+  backgroundUrl: '',
+  backgroundBlur: 0,
+  backgroundDim: 0,
+  fontFamily: 'default',
+  uiScale: 100,
+  radius: null,
+  cardStyle: 'default',
+  customCss: '',
+};
+const appearance = ref({ ...APPEARANCE_DEFAULTS });
+const CUSTOM_CSS_MAX = 50000;
+
+const fontOptions = [
+  { title: 'Theme / MOS default', value: 'default' },
+  { title: 'System UI', value: 'system' },
+  { title: 'Roboto', value: 'roboto' },
+  { title: 'Helvetica / Arial', value: 'sans' },
+  { title: 'Serif', value: 'serif' },
+  { title: 'Monospace', value: 'mono' },
+];
+const cardStyleOptions = [
+  { title: 'Theme / MOS default', value: 'default' },
+  { title: 'Flat (no shadow)', value: 'flat' },
+  { title: 'Outlined', value: 'outlined' },
+  { title: 'Glass (translucent)', value: 'glass' },
+];
+const radiusOptions = [
+  { title: 'Theme / MOS default', value: 'default' },
+  ...[0, 4, 8, 12, 16, 24, 32].map((px) => ({ title: `${px}px`, value: px })),
+];
+// Radius is stored as null (keep default) or px; v-select needs a non-null value for "default".
+const radiusModel = computed({
+  get: () => (appearance.value.radius === null ? 'default' : appearance.value.radius),
+  set: (value) => { appearance.value.radius = value === 'default' ? null : value; },
+});
 
 // Logo selection state (two built-in choices + manual URL)
 const showLogoDialog = ref(false);
@@ -1201,35 +1259,12 @@ const availableLogos = [
   { name: 'MOS Dark', path: '/mos_dark.png' },
 ];
 
-const defaultMenuItems = [
-  { id: 'dashboard', title: 'Dashboard', icon: 'mdi-view-dashboard', route: '/dashboard', visible: true },
-  { id: 'disks', title: 'Disks', icon: 'mdi-harddisk', route: '/disks', visible: true },
-  { id: 'pools', title: 'Pools', icon: 'mdi-view-array', route: '/pools', visible: true },
-  { id: 'shares', title: 'Shares', icon: 'mdi-share', route: '/shares', visible: true },
-  { id: 'remoteMounting', title: 'Remote', icon: 'mdi-cloud-sync', route: '/remoteMounting', visible: true },
-  { id: 'mosHub', title: 'Hub', icon: 'mdi-hub', route: '/mosHub', visible: true },
-  { id: 'docker', title: 'Docker', icon: 'mdi-docker', route: '/docker', visible: true },
-  { id: 'lxc', title: 'LXC', icon: 'mdi-arrange-send-backward', route: '/lxc', visible: true },
-  { id: 'vm', title: 'VM', icon: 'mdi-monitor-account', route: '/vm', visible: true },
-  { id: 'users', title: 'Users', icon: 'mdi-account', route: '/users', visible: true },
-  { id: 'webTerminal', title: 'Terminal', icon: 'mdi-powershell', route: '/webTerminal', visible: true },
-  { id: 'plugins', title: 'Plugins', icon: 'mdi-puzzle', route: '/plugins', visible: true },
-  { id: 'mosSettings', title: 'Settings', icon: 'mdi-tools', route: '/mosSettings', visible: true },
-];
-
-const layoutSettings = ref({
-  navMode: 'sidebar',
-  menuOrder: JSON.parse(JSON.stringify(defaultMenuItems)),
-  headerPlugins: [],
-});
-
-const savingLayout = ref(false);
-const installedPlugins = ref([]);
-const loadingPlugins = ref(false);
+const menuOrder = ref([]);
+const importInput = ref(null);
 let draggedIndex = null;
 
 const getCurrentTheme = () => {
-  return allThemes.value.find(t => t.id === currentTheme.value) || themes.value[0];
+  return allThemes.value.find(t => t.id === currentTheme.value) || builtInThemes.value[0];
 };
 
 const getAuthHeaders = () => ({
@@ -1238,31 +1273,102 @@ const getAuthHeaders = () => ({
 
 // ─── Canonical config path: normalize (load) → build → persist ───
 // One place that knows the full config shape, so no save can drop a section.
-// Accepts both the legacy nested settings.json ({ options: {...} }) and the
-// canonical flat shape ({ enableGlow, ... }).
+// Also the trust boundary for settings from the API, localStorage and imported files:
+// only known keys with the right type, range and length survive. theme-loader.js
+// additionally checks every URL and colour before it reaches CSS or the DOM.
+const HEX = /^#[0-9a-f]{3,8}$/i;
+const CUSTOMIZATION_COLORS = ['primaryColor', 'secondaryColor', 'accentColor', 'buttonColor', 'buttonTextColor'];
+const TEXT_LIMITS = { appName: 64, titlePrefix: 32, loginMessage: 200 };
+const THEME_COLORS = ['primary', 'secondary', 'accent', 'background', 'surface', 'textColor', 'buttonColor', 'buttonTextColor'];
+const text = (value, max) => (typeof value === 'string' ? value.trim().slice(0, max) : '');
+const int = (value, min, max, fallback) => {
+  const n = Number(value);
+  return value !== null && value !== '' && Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : fallback;
+};
+const oneOf = (value, list, fallback) => (list.some(o => o.value === value) ? value : fallback);
+
+const normalizeCustomization = (c) => {
+  const out = { ...CUSTOMIZATION_DEFAULTS };
+  for (const key of Object.keys(out)) {
+    const value = c[key];
+    if (typeof out[key] === 'boolean') out[key] = value === true;
+    else if (CUSTOMIZATION_COLORS.includes(key)) out[key] = typeof value === 'string' && HEX.test(value.trim()) ? value.trim() : '';
+    else out[key] = text(value, TEXT_LIMITS[key] || 2048);
+  }
+  return out;
+};
+
+const normalizeAppearance = (a) => ({
+  backgroundUrl: text(a.backgroundUrl, 2048),
+  backgroundBlur: int(a.backgroundBlur, 0, 20, 0),
+  backgroundDim: int(a.backgroundDim, 0, 80, 0),
+  fontFamily: oneOf(a.fontFamily, fontOptions, 'default'),
+  uiScale: int(a.uiScale, 80, 125, 100),
+  radius: oneOf(int(a.radius, 0, 32, null), radiusOptions, null),
+  cardStyle: oneOf(a.cardStyle, cardStyleOptions, 'default'),
+  customCss: typeof a.customCss === 'string' ? a.customCss.slice(0, CUSTOM_CSS_MAX) : '',
+});
+
+// Menu entries come from the engine; stored entries keep only id order + visibility.
+// Unknown ids (e.g. the old "users" entry) are dropped, routes always come from the engine.
+// Default order of 2.3.x (old MOS menu); stored unchanged, it is not a user choice.
+const LEGACY_DEFAULT_ORDER = 'dashboard,disks,pools,shares,remoteMounting,mosHub,docker,lxc,vm,users,webTerminal,plugins,mosSettings';
+
+const normalizeMenu = (list) => {
+  const known = menuItems.value;
+  const visible = {};
+  const storedIds = [];
+  const entries = Array.isArray(list) ? list : [];
+  const legacyDefault = entries.map(e => e && e.id).join() === LEGACY_DEFAULT_ORDER;
+  for (const entry of entries) {
+    if (!entry || !known.some(m => m.id === entry.id) || entry.id in visible) continue;
+    visible[entry.id] = entry.visible !== false;
+    storedIds.push(entry.id);
+  }
+  const nativeIds = known.map(m => m.id).filter(id => id in visible);
+  // Never reordered: follow the native order so new MOS entries land in their native place.
+  const ids = legacyDefault || storedIds.join() === nativeIds.join()
+    ? known.map(m => m.id)
+    : [...storedIds, ...known.map(m => m.id).filter(id => !(id in visible))];
+  return ids.map(id => ({ ...known.find(m => m.id === id), visible: visible[id] !== false }));
+};
+
+const normalizeCustomThemes = (list) => {
+  const seen = new Set();
+  return (Array.isArray(list) ? list : [])
+    .filter(t => t && typeof t.id === 'string' && /^custom-[a-z0-9-]{1,64}$/.test(t.id) && !seen.has(t.id) && seen.add(t.id))
+    .slice(0, 50)
+    .map((t) => {
+      const theme = {
+        id: t.id,
+        name: text(t.name, 64) || t.id,
+        description: text(t.description, 200) || 'Custom theme',
+        icon: 'mdi-palette',
+        isCustom: true,
+      };
+      for (const key of THEME_COLORS) theme[key] = typeof t[key] === 'string' && HEX.test(t[key]) ? t[key] : THEME_EDITOR_DEFAULTS[key];
+      return theme;
+    });
+};
+
+// Accepts both the legacy nested settings.json ({ options: {...} }) and the canonical flat shape.
 const normalizeConfig = (data) => {
-  if (!data || typeof data !== 'object') return null;
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
   const flags = data.options && typeof data.options === 'object' ? data.options : data;
-  const layout = data.layout || {};
-  const menuOrder = Array.isArray(layout.menuOrder) && layout.menuOrder.length
-    ? layout.menuOrder
-    : JSON.parse(JSON.stringify(defaultMenuItems));
+  const theme = typeof data.theme === 'string' && /^[a-z0-9-]{1,80}$/.test(data.theme) ? data.theme : null;
   return {
-    theme: data.theme || null,
+    theme,
     enableGlow: flags.enableGlow !== false,
     enableScanlines: flags.enableScanlines === true,
     enableAnimations: flags.enableAnimations !== false,
-    customization: { ...CUSTOMIZATION_DEFAULTS, ...(data.customization || {}) },
-    layout: {
-      navMode: layout.navMode || 'sidebar',
-      menuOrder,
-      headerPlugins: Array.isArray(layout.headerPlugins) ? layout.headerPlugins : [],
-    },
-    customThemes: Array.isArray(data.customThemes) ? data.customThemes : [],
+    customization: normalizeCustomization(data.customization || {}),
+    appearance: normalizeAppearance(data.appearance || {}),
+    layout: { menuOrder: normalizeMenu(data.layout && data.layout.menuOrder) },
+    customThemes: normalizeCustomThemes(data.customThemes),
   };
 };
 
-// Assign a normalized config into reactive state (used by API + localStorage load).
+// Assign a normalized config into reactive state (used by API, localStorage and import).
 const applyLoadedConfig = (data) => {
   const cfg = normalizeConfig(data);
   if (!cfg) return null;
@@ -1274,30 +1380,41 @@ const applyLoadedConfig = (data) => {
     enableAnimations: cfg.enableAnimations,
   };
   customization.value = { ...cfg.customization };
-  layoutSettings.value = { ...cfg.layout };
+  appearance.value = { ...cfg.appearance };
+  menuOrder.value = cfg.layout.menuOrder;
   customThemes.value = cfg.customThemes;
   return cfg;
 };
 
 // Build the canonical full config from current reactive state — never drops a section.
-const buildConfig = () => ({
-  theme: currentTheme.value,
-  enableGlow: options.value.enableGlow,
-  enableScanlines: options.value.enableScanlines,
-  enableAnimations: options.value.enableAnimations,
-  customization: { ...CUSTOMIZATION_DEFAULTS, ...customization.value },
-  layout: {
-    navMode: layoutSettings.value.navMode,
-    menuOrder: layoutSettings.value.menuOrder,
-    headerPlugins: layoutSettings.value.headerPlugins || [],
-  },
-  customThemes: customThemes.value,
-});
+const buildConfig = () => {
+  const cfg = normalizeConfig({
+    theme: currentTheme.value,
+    ...options.value,
+    customization: customization.value,
+    appearance: appearance.value,
+    layout: { menuOrder: menuOrder.value },
+    customThemes: customThemes.value,
+  });
+  cfg.layout.menuOrder = cfg.layout.menuOrder.map(({ id, visible }) => ({ id, visible }));
+  return cfg;
+};
 
-// The single persistence path: localStorage + one API POST. Every save routes here.
-// Returns false when only localStorage was updated; the snackbar tells the user.
+// Show unsaved menu changes on this page right away (saved with "Save Menu").
+const preview = () => {
+  if (engine) engine.apply(buildConfig());
+};
+
+// The single persistence path: localStorage + live apply + one API POST. Every save routes here.
+// Returns false when the server copy was not updated; the snackbar tells the user.
 const persistConfig = async (config) => {
+  if (!engine) {
+    // Without the engine the menu list is empty, so a save would drop menu settings.
+    saveError.value = 'theme-loader.js could not be loaded. Reinstall the plugin, then reload this page.';
+    return false;
+  }
   saveToLocalStorage(config);
+  engine.apply(config);
   let reason;
   try {
     const res = await fetch(`/api/v1/mos/plugins/settings/${PLUGIN_NAME}`, {
@@ -1337,14 +1454,13 @@ const fetchSettings = async () => {
         await persistConfig(buildConfig());
       } else {
         applyLoadedConfig(data);
-        // theme-loader.js reads only localStorage, so mirror the server copy there.
-        saveToLocalStorage(buildConfig());
+        // theme-loader.js reads only localStorage, so mirror the server copy there
+        // (only with the engine: without its menu list the copy would lose menu settings).
+        if (engine) {
+          saveToLocalStorage(buildConfig());
+          preview();
+        }
       }
-      if (currentTheme.value) {
-        applyThemeStyles(currentTheme.value);
-      }
-      applyBranding();
-      applyLayout();
     }
   } catch (e) {
     console.error('Failed to fetch settings:', e);
@@ -1359,11 +1475,7 @@ const applyTheme = async () => {
   saving.value = true;
   try {
     currentTheme.value = selectedTheme.value;
-    const saved = await persistConfig(buildConfig());
-    applyThemeStyles(selectedTheme.value);
-
-    // Force reload to apply theme globally; skip it on a failed server save so the error stays visible
-    if (saved) window.location.reload();
+    await persistConfig(buildConfig());
   } catch (e) {
     console.error('Failed to apply theme:', e);
   } finally {
@@ -1374,12 +1486,11 @@ const applyTheme = async () => {
 const resetTheme = async () => {
   saving.value = true;
   try {
-    // Reset only theme + options; customization, layout and custom themes are preserved.
+    // Reset only theme + options; customization, appearance, menu and custom themes are preserved.
     currentTheme.value = null;
     selectedTheme.value = null;
-    options.value = { enableGlow: true, enableScanlines: false, enableAnimations: true };
+    options.value = { ...OPTION_DEFAULTS };
     await persistConfig(buildConfig());
-    removeThemeStyles();
   } catch (e) {
     console.error('Failed to reset theme:', e);
   } finally {
@@ -1391,9 +1502,6 @@ const saveOptions = async () => {
   savingOptions.value = true;
   try {
     await persistConfig(buildConfig());
-    if (currentTheme.value) {
-      applyThemeStyles(currentTheme.value);
-    }
   } catch (e) {
     console.error('Failed to save options:', e);
   } finally {
@@ -1405,10 +1513,6 @@ const saveCustomization = async () => {
   savingCustomization.value = true;
   try {
     await persistConfig(buildConfig());
-    if (currentTheme.value) {
-      applyThemeStyles(currentTheme.value);
-    }
-    applyBranding();
   } catch (e) {
     console.error('Failed to save customization:', e);
   } finally {
@@ -1418,6 +1522,22 @@ const saveCustomization = async () => {
 
 const resetCustomization = () => {
   customization.value = { ...CUSTOMIZATION_DEFAULTS };
+};
+
+const saveAppearance = async () => {
+  savingAppearance.value = true;
+  try {
+    await persistConfig(buildConfig());
+  } catch (e) {
+    console.error('Failed to save appearance:', e);
+  } finally {
+    savingAppearance.value = false;
+  }
+};
+
+// Keeps custom CSS: it has its own card and is easy to lose.
+const resetAppearance = () => {
+  appearance.value = { ...APPEARANCE_DEFAULTS, customCss: appearance.value.customCss };
 };
 
 // Logo selection: built-in choices + manual URL (no server upload endpoint in MOS API)
@@ -1446,18 +1566,7 @@ const openThemeEditor = (theme = null) => {
     themeEditor.value = { ...theme };
   } else {
     editingThemeId.value = null;
-    themeEditor.value = {
-      name: '',
-      description: '',
-      primary: '#ff6b00',
-      secondary: '#cc5500',
-      accent: '#ffaa00',
-      background: '#0d0d0d',
-      surface: '#1a1a1a',
-      textColor: '#e0e0e0',
-      buttonColor: '#ff6b00',
-      buttonTextColor: '#ffffff',
-    };
+    themeEditor.value = { ...THEME_EDITOR_DEFAULTS };
   }
   showThemeEditor.value = true;
 };
@@ -1468,12 +1577,12 @@ const closeThemeEditor = () => {
 };
 
 const generateThemeId = (name) => {
-  return 'custom-' + name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+  return ('custom-' + name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-')).slice(0, 71);
 };
 
 const saveCustomTheme = async () => {
   if (!themeEditor.value.name) return;
-  
+
   savingCustomTheme.value = true;
   try {
     const newTheme = {
@@ -1491,7 +1600,7 @@ const saveCustomTheme = async () => {
       buttonTextColor: themeEditor.value.buttonTextColor || '#ffffff',
       isCustom: true,
     };
-    
+
     if (editingThemeId.value) {
       // Update existing theme
       const index = customThemes.value.findIndex(t => t.id === editingThemeId.value);
@@ -1502,7 +1611,7 @@ const saveCustomTheme = async () => {
       // Add new theme
       customThemes.value.push(newTheme);
     }
-    
+
     await persistConfig(buildConfig());
     closeThemeEditor();
   } catch (e) {
@@ -1518,38 +1627,19 @@ const editCustomTheme = (theme) => {
 
 const deleteCustomTheme = async (themeId) => {
   if (!confirm('Delete this custom theme?')) return;
-  
+
   customThemes.value = customThemes.value.filter(t => t.id !== themeId);
-  
+
   // If deleted theme was active, reset
   if (currentTheme.value === themeId) {
     currentTheme.value = null;
     selectedTheme.value = null;
-    removeThemeStyles();
   }
-  
+
   await persistConfig(buildConfig());
 };
 
-const applyBranding = () => {
-  // Apply custom app name
-  if (customization.value.appName) {
-    const titleEl = document.querySelector('.v-toolbar-title__placeholder');
-    if (titleEl) {
-      titleEl.textContent = customization.value.appName;
-    }
-  }
-  
-  // Apply custom logo
-  if (customization.value.logoUrl) {
-    const logoImg = document.querySelector('.v-app-bar img.v-img__img');
-    if (logoImg) {
-      logoImg.src = customization.value.logoUrl;
-    }
-  }
-};
-
-// Layout functions
+// Menu functions
 const onDragStart = (event, index) => {
   draggedIndex = index;
   event.dataTransfer.effectAllowed = 'move';
@@ -1557,724 +1647,90 @@ const onDragStart = (event, index) => {
 
 const onDrop = (event, targetIndex) => {
   if (draggedIndex === null || draggedIndex === targetIndex) return;
-  
-  const items = [...layoutSettings.value.menuOrder];
+
+  const items = [...menuOrder.value];
   const [draggedItem] = items.splice(draggedIndex, 1);
   items.splice(targetIndex, 0, draggedItem);
-  layoutSettings.value.menuOrder = items;
+  menuOrder.value = items;
   draggedIndex = null;
-};
-
-const resetLayout = () => {
-  layoutSettings.value = {
-    navMode: 'sidebar',
-    menuOrder: JSON.parse(JSON.stringify(defaultMenuItems)),
-    headerPlugins: [],
-  };
-};
-
-const saveLayout = async () => {
-  savingLayout.value = true;
-  try {
-    await persistConfig(buildConfig());
-    applyLayout();
-  } catch (e) {
-    console.error('Failed to save layout:', e);
-  } finally {
-    savingLayout.value = false;
-  }
-};
-
-const fetchInstalledPlugins = async () => {
-  loadingPlugins.value = true;
-  try {
-    const res = await fetch('/api/v1/mos/plugins', {
-      headers: getAuthHeaders(),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      // MOS API returns { count, results: [...] }
-      const pluginList = data.results || data.plugins || data.data || (Array.isArray(data) ? data : []);
-      installedPlugins.value = pluginList
-        .filter(p => p && p.name && p.name !== 'frontend-customizer')
-        .map(p => ({
-          name: p.name,
-          displayName: p.displayName || p.name,
-          icon: p.icon || 'mdi-puzzle',
-          route: `/plugins/${p.name}`,
-        }));
-    }
-  } catch (e) {
-    console.error('Failed to fetch plugins:', e);
-  } finally {
-    loadingPlugins.value = false;
-  }
-};
-
-const toggleHeaderPlugin = (pluginName, enabled) => {
-  if (!layoutSettings.value.headerPlugins) {
-    layoutSettings.value.headerPlugins = [];
-  }
-  
-  if (enabled) {
-    if (!layoutSettings.value.headerPlugins.includes(pluginName)) {
-      layoutSettings.value.headerPlugins.push(pluginName);
-    }
-  } else {
-    layoutSettings.value.headerPlugins = layoutSettings.value.headerPlugins.filter(
-      p => p !== pluginName
-    );
-  }
-  // Apply changes immediately
-  applyLayout();
+  preview();
 };
 
 const toggleMenuItemVisibility = (item) => {
   item.visible = !item.visible;
-  applyLayout();
+  preview();
 };
 
-const applyLayout = () => {
-  const theme = getCurrentTheme();
-  const navMode = layoutSettings.value.navMode;
-  const menuOrder = layoutSettings.value.menuOrder;
-  
-  // Remove existing layout styles
-  const existingLayoutStyle = document.getElementById('riddix-layout-styles');
-  if (existingLayoutStyle) {
-    existingLayoutStyle.remove();
-  }
-  
-  // Remove existing header nav if present
-  const existingHeaderNav = document.getElementById('riddix-header-nav');
-  if (existingHeaderNav) {
-    existingHeaderNav.remove();
-  }
+const resetMenu = () => {
+  menuOrder.value = normalizeMenu([]);
+  preview();
+};
 
-  // Generate CSS to hide disabled menu items in sidebar
-  const hiddenItemsCSS = menuOrder
-    .filter(item => !item.visible)
-    .map(item => {
-      // Match sidebar links by href
-      return `.v-navigation-drawer a[href="${item.route}"] { display: none !important; }`;
-    })
-    .join('\n');
+const saveMenu = async () => {
+  savingMenu.value = true;
+  try {
+    await persistConfig(buildConfig());
+  } catch (e) {
+    console.error('Failed to save menu:', e);
+  } finally {
+    savingMenu.value = false;
+  }
+};
 
-  if (navMode === 'sidebar') {
-    // Sidebar mode - only apply hidden items CSS
-    if (hiddenItemsCSS) {
-      const layoutStyle = document.createElement('style');
-      layoutStyle.id = 'riddix-layout-styles';
-      layoutStyle.textContent = hiddenItemsCSS;
-      document.head.appendChild(layoutStyle);
-    }
+// ─── Backup: export / import / reset everything ───
+const IMPORT_MAX_BYTES = 1024 * 1024;
+
+const exportSettings = () => {
+  const blob = new Blob([JSON.stringify(buildConfig(), null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'frontend-customizer-settings.json';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
+
+const importSettings = async (event) => {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+  let data;
+  try {
+    if (file.size > IMPORT_MAX_BYTES) throw new Error('file is larger than 1 MB');
+    data = JSON.parse(await file.text());
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('not a settings object');
+  } catch (e) {
+    saveError.value = `Import failed: ${e.message}`;
     return;
   }
-
-  if (navMode === 'header') {
-    // Create header navigation CSS
-    const layoutStyle = document.createElement('style');
-    layoutStyle.id = 'riddix-layout-styles';
-    layoutStyle.textContent = `
-      /* Hide sidebar navigation drawer */
-      .v-navigation-drawer {
-        display: none !important;
-      }
-      
-      /* Adjust main content for no sidebar */
-      .v-main {
-        padding-left: 0 !important;
-      }
-      
-      /* Header nav container */
-      #riddix-header-nav {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        margin-left: 16px;
-        flex-wrap: wrap;
-      }
-      
-      #riddix-header-nav a {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        padding: 6px 12px;
-        border-radius: 6px;
-        text-decoration: none;
-        font-size: 11px;
-        font-family: 'JetBrains Mono', 'Fira Code', monospace;
-        color: ${theme?.textColor || '#b0b0b0'};
-        background: rgba(255,255,255,0.03);
-        border: 1px solid transparent;
-        transition: all 0.2s ease;
-        white-space: nowrap;
-      }
-      
-      #riddix-header-nav a:hover {
-        color: ${theme?.primary || '#00ff41'};
-        background: rgba(${theme?.primary || '#00ff41'}, 0.1);
-        border-color: ${theme?.primary || '#00ff41'}44;
-        box-shadow: 0 0 10px ${theme?.primary || '#00ff41'}22;
-      }
-      
-      #riddix-header-nav a.router-link-active,
-      #riddix-header-nav a.router-link-exact-active {
-        color: ${theme?.primary || '#00ff41'};
-        background: ${theme?.primary || '#00ff41'}22;
-        border-color: ${theme?.primary || '#00ff41'}66;
-      }
-      
-      #riddix-header-nav a .v-icon {
-        font-size: 14px;
-      }
-      
-      /* Hide hamburger menu in header mode */
-      .v-app-bar-nav-icon {
-        display: none !important;
-      }
-      
-      @media (max-width: 960px) {
-        #riddix-header-nav {
-          display: none;
-        }
-        .v-app-bar-nav-icon {
-          display: flex !important;
-        }
-        .v-navigation-drawer {
-          display: block !important;
-        }
-      }
-    `;
-    document.head.appendChild(layoutStyle);
-    
-    // Create header navigation element
-    const appBar = document.querySelector('.v-app-bar .v-toolbar__content');
-    if (appBar) {
-      const headerNav = document.createElement('nav');
-      headerNav.id = 'riddix-header-nav';
-      
-      const visibleItems = menuOrder.filter(item => item.visible);
-      visibleItems.forEach(item => {
-        if (item.id === 'logout') return; // Skip logout in header
-        
-        const link = document.createElement('a');
-        link.href = item.route;
-        link.innerHTML = '<span class="v-icon mdi ' + item.icon + '"></span><span>' + item.title + '</span>';
-        link.addEventListener('click', (e) => {
-          e.preventDefault();
-          window.history.pushState({}, '', item.route);
-          window.dispatchEvent(new PopStateEvent('popstate'));
-        });
-        headerNav.appendChild(link);
-      });
-      
-      // Add header plugins as direct links
-      const headerPlugins = layoutSettings.value.headerPlugins || [];
-      if (headerPlugins.length > 0) {
-        // Add separator
-        const separator = document.createElement('span');
-        separator.style.cssText = 'width: 1px; height: 20px; background: ' + (theme?.primary || '#00ff41') + '44; margin: 0 8px;';
-        headerNav.appendChild(separator);
-        
-        // Add plugin links
-        headerPlugins.forEach(pluginName => {
-          const plugin = installedPlugins.value.find(p => p.name === pluginName);
-          const link = document.createElement('a');
-          link.href = `/plugins/${pluginName}`;
-          link.innerHTML = '<span class="v-icon mdi ' + (plugin?.icon || 'mdi-puzzle') + '"></span><span>' + (plugin?.displayName || pluginName) + '</span>';
-          link.style.cssText = 'background: ' + (theme?.primary || '#00ff41') + '11 !important; border-color: ' + (theme?.primary || '#00ff41') + '33 !important;';
-          link.addEventListener('click', (e) => {
-            e.preventDefault();
-            window.history.pushState({}, '', `/plugins/${pluginName}`);
-            window.dispatchEvent(new PopStateEvent('popstate'));
-          });
-          headerNav.appendChild(link);
-        });
-      }
-      
-      // Insert after the title (before spacer)
-      const toolbarTitle = appBar.querySelector('.v-toolbar-title');
-      const spacer = appBar.querySelector('.v-spacer');
-      if (spacer) {
-        appBar.insertBefore(headerNav, spacer);
-      } else if (toolbarTitle && toolbarTitle.nextSibling) {
-        appBar.insertBefore(headerNav, toolbarTitle.nextSibling);
-      } else {
-        appBar.appendChild(headerNav);
-      }
-    }
-  }
+  applyLoadedConfig(data);
+  await persistConfig(buildConfig());
 };
 
-const applyThemeStyles = (themeId) => {
-  const theme = allThemes.value.find(t => t.id === themeId);
-  if (!theme) return;
-
-  removeThemeStyles();
-
-  const glow = options.value.enableGlow;
-  const anim = options.value.enableAnimations;
-  
-  // Use customization colors if set, otherwise fall back to theme colors
-  const btnColor = customization.value.buttonColor || theme.buttonColor || theme.primary;
-  const btnTextColor = customization.value.buttonTextColor || theme.buttonTextColor || '#ffffff';
-
-  const styleEl = document.createElement('style');
-  styleEl.id = 'riddix-theme-styles';
-  styleEl.textContent = `
-    /* ═══════════════════════════════════════════════════════════════
-       RiDDiX HACKER THEME - Complete Redesign
-       Theme: ${themeId}
-    ═══════════════════════════════════════════════════════════════ */
-
-    :root {
-      --riddix-primary: ${theme.primary};
-      --riddix-secondary: ${theme.secondary};
-      --riddix-accent: ${theme.accent};
-      --riddix-background: ${theme.background};
-      --riddix-surface: ${theme.surface};
-      --riddix-glow: ${glow ? `0 0 20px ${theme.primary}44` : 'none'};
-    }
-
-    /* ═══ GLOBAL STYLES ═══ */
-    html, body {
-      background-color: ${theme.background} !important;
-      color: #e0e0e0 !important;
-    }
-
-    .v-application {
-      background-color: ${theme.background} !important;
-      font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace !important;
-    }
-
-    /* ═══ NOS NITRO RALLY STRIPES ═══ */
-    ${themeId === 'nos-nitro' ? `
-    .v-application::before {
-      content: '';
-      position: fixed;
-      top: 0;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 0;
-      background: 
-        linear-gradient(180deg, transparent 0%, ${theme.primary}08 50%, transparent 100%),
-        repeating-linear-gradient(
-          90deg,
-          transparent 0px,
-          transparent calc(50% - 65px),
-          ${theme.accent}15 calc(50% - 65px),
-          ${theme.accent}25 calc(50% - 45px),
-          transparent calc(50% - 45px),
-          transparent calc(50% - 25px),
-          ${theme.primary}20 calc(50% - 25px),
-          ${theme.primary}35 calc(50% + 25px),
-          transparent calc(50% + 25px),
-          transparent calc(50% + 45px),
-          ${theme.accent}25 calc(50% + 45px),
-          ${theme.accent}15 calc(50% + 65px),
-          transparent calc(50% + 65px)
-        );
-    }
-    
-    .v-application::after {
-      content: '';
-      position: fixed;
-      top: -50%;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 200px;
-      height: 200%;
-      pointer-events: none;
-      z-index: 0;
-      background: linear-gradient(180deg, ${theme.primary}00 0%, ${theme.primary}06 20%, ${theme.accent}10 50%, ${theme.primary}06 80%, ${theme.primary}00 100%);
-      animation: ${anim ? 'nitroFlare 8s ease-in-out infinite' : 'none'};
-    }
-    
-    @keyframes nitroFlare {
-      0%, 100% { opacity: 0.3; }
-      50% { opacity: 0.7; }
-    }
-    
-    .v-main, .v-navigation-drawer, .v-app-bar {
-      position: relative;
-      z-index: 1;
-    }
-    ` : ''}
-
-    /* ═══ LUMINA CIRCUIT LIGHT THEME ═══ */
-    ${themeId === 'lumina-circuit' ? `
-    html, body, .v-application {
-      color: #000000 !important;
-    }
-    
-    .v-application::before {
-      content: '';
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 0;
-      background: 
-        radial-gradient(ellipse at 20% 20%, ${theme.primary}08 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 80%, ${theme.secondary}08 0%, transparent 50%),
-        radial-gradient(ellipse at 50% 50%, ${theme.accent}05 0%, transparent 70%),
-        linear-gradient(135deg, ${theme.background} 0%, #e8eef5 100%);
-    }
-    
-    .v-application::after {
-      content: '';
-      position: fixed;
-      top: 0;
-      right: 0;
-      width: 400px;
-      height: 400px;
-      pointer-events: none;
-      z-index: 0;
-      background: linear-gradient(135deg, ${theme.primary}10 0%, transparent 60%);
-      border-radius: 0 0 0 100%;
-      animation: ${anim ? 'luminaPulse 12s ease-in-out infinite' : 'none'};
-    }
-    
-    @keyframes luminaPulse {
-      0%, 100% { opacity: 0.5; transform: scale(1); }
-      50% { opacity: 0.8; transform: scale(1.05); }
-    }
-    
-    .v-main, .v-navigation-drawer, .v-app-bar { position: relative; z-index: 1; }
-    
-    .v-card {
-      background: rgba(255,255,255,0.85) !important;
-      backdrop-filter: blur(10px) !important;
-      border: 1px solid ${theme.primary}15 !important;
-      box-shadow: 0 4px 20px rgba(0,102,255,0.08) !important;
-    }
-    
-    .v-card:hover {
-      box-shadow: 0 8px 30px rgba(0,102,255,0.12) !important;
-      border-color: ${theme.primary}30 !important;
-    }
-    
-    .v-btn { color: #000000 !important; }
-    .v-btn--variant-elevated, .v-btn--variant-flat {
-      background: linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 100%) !important;
-      color: white !important;
-    }
-    
-    .v-list-item__title, .v-list-item__subtitle,
-    .v-list-item-title, .v-list-item-subtitle,
-    .v-application .v-list-item__title,
-    .v-application .v-list-item-title,
-    .v-application .v-list-item__subtitle,
-    .v-application .v-list-item-subtitle { color: #000000 !important; }
-    .v-list-item__title, .v-list-item-title { font-weight: 500 !important; }
-    
-    .v-application .v-card,
-    .v-application .v-card *,
-    .v-application .v-list *,
-    .v-application .v-navigation-drawer *,
-    .v-application .v-toolbar *,
-    .v-application .v-app-bar * { color: #000000; }
-    
-    .v-application .v-icon { color: #000000 !important; }
-    
-    .v-navigation-drawer .v-list-item--active {
-      background: linear-gradient(135deg, ${theme.primary}15 0%, ${theme.secondary}10 100%) !important;
-      border-left: 3px solid ${theme.primary} !important;
-    }
-    
-    .v-navigation-drawer .v-list-item--active .v-list-item__title {
-      color: ${theme.primary} !important;
-      font-weight: 600 !important;
-    }
-    
-    .v-data-table { background: rgba(255,255,255,0.9) !important; }
-    .v-data-table th {
-      background: ${theme.primary}08 !important;
-      color: ${theme.primary} !important;
-      font-weight: 600 !important;
-    }
-    
-    .v-text-field .v-field {
-      background: rgba(255,255,255,0.95) !important;
-      border: 1px solid #d0d7de !important;
-    }
-    .v-text-field .v-field:hover { border-color: ${theme.primary}50 !important; }
-    .v-text-field .v-field--focused {
-      border-color: ${theme.primary} !important;
-      box-shadow: 0 0 0 3px ${theme.primary}20 !important;
-    }
-    
-    .v-chip {
-      background: ${theme.primary}12 !important;
-      color: ${theme.primary} !important;
-      border: 1px solid ${theme.primary}30 !important;
-    }
-    
-    .v-progress-linear { background: ${theme.primary}15 !important; }
-    .v-progress-linear__determinate {
-      background: linear-gradient(90deg, ${theme.primary} 0%, ${theme.secondary} 100%) !important;
-    }
-    
-    ::selection { background: ${theme.primary}30 !important; color: #000000 !important; }
-    ::-webkit-scrollbar-thumb { background: ${theme.primary}40 !important; }
-    ::-webkit-scrollbar-thumb:hover { background: ${theme.primary}60 !important; }
-    ::-webkit-scrollbar-track { background: ${theme.background} !important; }
-    ` : ''}
-
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: ${theme.background}; }
-    ::-webkit-scrollbar-thumb { background: ${theme.primary}44; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: ${theme.primary}88; }
-
-    ::selection { background: ${theme.primary}44; color: ${theme.primary}; }
-
-    /* ═══ APP BAR / HEADER ═══ */
-    .v-app-bar, .v-toolbar {
-      background: linear-gradient(180deg, ${theme.surface} 0%, ${theme.background} 100%) !important;
-      border-bottom: 1px solid ${theme.primary}33 !important;
-      ${glow ? `box-shadow: 0 2px 20px ${theme.primary}22 !important;` : ''}
-    }
-
-    .v-app-bar .v-toolbar-title {
-      color: ${theme.primary} !important;
-      font-weight: 600 !important;
-      text-shadow: ${glow ? `0 0 10px ${theme.primary}66` : 'none'};
-    }
-
-    /* ═══ NAVIGATION DRAWER ═══ */
-    .v-navigation-drawer {
-      background: linear-gradient(180deg, ${theme.surface} 0%, ${theme.background} 100%) !important;
-      border-right: 1px solid ${theme.primary}22 !important;
-    }
-
-    .v-navigation-drawer .v-list-item {
-      margin: 4px 8px !important;
-      border-radius: 8px !important;
-      transition: all 0.2s ease !important;
-    }
-
-    .v-navigation-drawer .v-list-item:hover {
-      background: ${theme.primary}15 !important;
-      transform: translateX(4px);
-    }
-
-    .v-navigation-drawer .v-list-item--active {
-      background: linear-gradient(90deg, ${theme.primary}22 0%, transparent 100%) !important;
-      border-left: 3px solid ${theme.primary} !important;
-      ${glow ? `box-shadow: inset 0 0 20px ${theme.primary}11 !important;` : ''}
-    }
-
-    .v-navigation-drawer .v-list-item--active .v-list-item-title { color: ${theme.primary} !important; font-weight: 600 !important; }
-    .v-navigation-drawer .v-icon { color: ${theme.primary}aa !important; }
-    .v-navigation-drawer .v-list-item--active .v-icon { color: ${theme.primary} !important; ${glow ? `filter: drop-shadow(0 0 4px ${theme.primary}88);` : ''} }
-
-    /* ═══ CARDS ═══ */
-    .v-card {
-      background: linear-gradient(135deg, ${theme.surface} 0%, ${theme.background} 100%) !important;
-      border: 1px solid ${theme.primary}22 !important;
-      border-radius: 12px !important;
-      ${glow ? `box-shadow: 0 4px 30px ${theme.primary}11, inset 0 1px 0 ${theme.primary}11 !important;` : ''}
-      backdrop-filter: blur(10px);
-      transition: all 0.3s ease !important;
-    }
-
-    .v-card:hover { border-color: ${theme.primary}44 !important; ${glow ? `box-shadow: 0 8px 40px ${theme.primary}22 !important;` : ''} }
-    .v-card-title { color: ${theme.primary} !important; font-weight: 600 !important; font-size: 1.1rem !important; border-bottom: 1px solid ${theme.primary}22; padding-bottom: 12px !important; margin-bottom: 12px !important; }
-    .v-card-subtitle { color: #888 !important; }
-    .v-card-text { color: #b0b0b0 !important; }
-
-    /* ═══ BUTTONS ═══ */
-    .v-btn {
-      font-family: 'JetBrains Mono', monospace !important;
-      font-weight: 500 !important;
-      letter-spacing: 0.5px !important;
-      text-transform: uppercase !important;
-      border-radius: 8px !important;
-      ${anim ? 'transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;' : ''}
-    }
-
-    .v-btn--variant-elevated, .v-btn--variant-flat {
-      background: linear-gradient(135deg, ${btnColor} 0%, ${theme.secondary} 100%) !important;
-      color: ${btnTextColor} !important;
-      border: none !important;
-      ${glow ? `box-shadow: 0 4px 15px ${btnColor}44 !important;` : ''}
-    }
-
-    .v-btn--variant-elevated:hover, .v-btn--variant-flat:hover {
-      ${anim ? 'transform: translateY(-2px) scale(1.02) !important;' : ''}
-      ${glow ? `box-shadow: 0 6px 25px ${btnColor}66 !important;` : ''}
-    }
-
-    .v-btn--variant-outlined { border: 1px solid ${btnColor}66 !important; color: ${btnColor} !important; background: transparent !important; }
-    .v-btn--variant-outlined:hover { background: ${btnColor}11 !important; border-color: ${btnColor} !important; }
-    .v-btn--variant-text { color: ${btnColor} !important; }
-    .v-btn--variant-text:hover { background: ${btnColor}11 !important; }
-    .v-btn--icon { border-radius: 50% !important; }
-    .v-btn--icon:hover { background: ${btnColor}22 !important; ${glow ? `box-shadow: 0 0 15px ${btnColor}44 !important;` : ''} }
-    .v-btn .v-icon { 
-      ${glow ? `filter: drop-shadow(0 0 2px ${btnColor}44);` : ''} 
-      --v-icon-size-multiplier: .8571428571;
-    }
-    .v-btn__content > .v-icon--start {
-      margin-inline: calc(var(--v-btn-height) / -9) calc(var(--v-btn-height) / 4.5);
-    }
-    .v-btn--variant-elevated .v-icon,
-    .v-btn--variant-flat .v-icon {
-      color: ${btnTextColor} !important;
-    }
-    .v-btn--variant-outlined .v-icon,
-    .v-btn--variant-text .v-icon {
-      color: ${btnColor} !important;
-    }
-
-    /* ═══ DATA TABLES ═══ */
-    .v-data-table { background: ${theme.surface} !important; border: 1px solid ${theme.primary}22 !important; border-radius: 12px !important; overflow: hidden !important; }
-    .v-data-table-header { background: linear-gradient(180deg, ${theme.surface} 0%, ${theme.background} 100%) !important; }
-    .v-data-table-header th { color: ${theme.primary} !important; font-weight: 600 !important; text-transform: uppercase !important; font-size: 0.75rem !important; letter-spacing: 1px !important; border-bottom: 2px solid ${theme.primary}33 !important; }
-    .v-data-table__tr { border-bottom: 1px solid ${theme.primary}11 !important; transition: all 0.2s ease !important; }
-    .v-data-table__tr:hover { background: linear-gradient(90deg, ${theme.primary}11 0%, transparent 100%) !important; }
-    .v-data-table__tr td { color: #c0c0c0 !important; border-bottom: 1px solid ${theme.primary}11 !important; }
-    .v-data-table-footer { background: ${theme.surface} !important; border-top: 1px solid ${theme.primary}22 !important; }
-
-    /* ═══ INPUTS / TEXT FIELDS ═══ */
-    .v-field { background: ${theme.background} !important; border: 1px solid ${theme.primary}33 !important; border-radius: 8px !important; transition: all 0.2s ease !important; }
-    .v-field:hover { border-color: ${theme.primary}66 !important; }
-    .v-field--focused { border-color: ${theme.primary} !important; ${glow ? `box-shadow: 0 0 15px ${theme.primary}33 !important;` : ''} }
-    .v-field__input { color: #e0e0e0 !important; }
-    .v-label { color: #888 !important; }
-    .v-field--focused .v-label { color: ${theme.primary} !important; }
-
-    /* ═══ SELECT / DROPDOWN ═══ */
-    .v-select .v-field { background: ${theme.background} !important; }
-    .v-menu > .v-overlay__content { background: ${theme.surface} !important; border: 1px solid ${theme.primary}33 !important; border-radius: 8px !important; ${glow ? `box-shadow: 0 8px 30px ${theme.primary}22 !important;` : ''} }
-    .v-list { background: transparent !important; }
-    .v-list-item { transition: all 0.15s ease !important; }
-    .v-list-item:hover { background: ${theme.primary}15 !important; }
-    .v-list-item--active { background: ${theme.primary}22 !important; }
-    .v-list-item-title { color: #c0c0c0 !important; }
-    .v-list-item--active .v-list-item-title { color: ${theme.primary} !important; }
-
-    /* ═══ DIALOGS / MODALS ═══ */
-    .v-dialog > .v-overlay__content { background: ${theme.surface} !important; border: 1px solid ${theme.primary}33 !important; border-radius: 16px !important; ${glow ? `box-shadow: 0 20px 60px ${theme.primary}22 !important;` : ''} }
-    .v-dialog .v-card { background: transparent !important; border: none !important; box-shadow: none !important; }
-
-    /* ═══ CHIPS ═══ */
-    .v-chip { background: ${theme.primary}22 !important; border: 1px solid ${theme.primary}44 !important; color: ${theme.primary} !important; font-family: 'JetBrains Mono', monospace !important; font-size: 0.8rem !important; }
-    .v-chip--variant-elevated { background: linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 100%) !important; color: ${theme.background} !important; ${glow ? `box-shadow: 0 2px 10px ${theme.primary}44 !important;` : ''} }
-
-    /* ═══ PROGRESS BARS ═══ */
-    .v-progress-linear { background: ${theme.background} !important; border-radius: 4px !important; overflow: hidden !important; }
-    .v-progress-linear__background { background: ${theme.primary}22 !important; }
-    .v-progress-linear__determinate, .v-progress-linear__indeterminate { background: linear-gradient(90deg, ${theme.secondary} 0%, ${theme.primary} 50%, ${theme.accent} 100%) !important; ${glow ? `box-shadow: 0 0 15px ${theme.primary}66 !important;` : ''} }
-    .v-progress-circular__overlay { stroke: ${theme.primary} !important; }
-
-    /* ═══ SWITCHES / TOGGLES ═══ */
-    .v-switch .v-selection-control__input > .v-icon { color: ${theme.primary} !important; }
-    .v-switch--inset .v-switch__track { background: ${theme.primary}33 !important; }
-    .v-switch--inset.v-switch--selected .v-switch__track { background: ${theme.primary}66 !important; ${glow ? `box-shadow: 0 0 10px ${theme.primary}44 !important;` : ''} }
-    .v-checkbox .v-selection-control__input > .v-icon { color: ${theme.primary} !important; }
-
-    /* ═══ TABS ═══ */
-    .v-tabs { background: transparent !important; }
-    .v-tab { color: #888 !important; text-transform: uppercase !important; letter-spacing: 1px !important; font-weight: 500 !important; transition: all 0.2s ease !important; }
-    .v-tab:hover { color: ${theme.primary}aa !important; background: ${theme.primary}11 !important; }
-    .v-tab--selected { color: ${theme.primary} !important; background: ${theme.primary}15 !important; }
-    .v-tabs-slider { background: ${theme.primary} !important; ${glow ? `box-shadow: 0 0 10px ${theme.primary}66 !important;` : ''} }
-
-    /* ═══ EXPANSION PANELS ═══ */
-    .v-expansion-panels { background: transparent !important; }
-    .v-expansion-panel { background: ${theme.surface} !important; border: 1px solid ${theme.primary}22 !important; margin-bottom: 8px !important; border-radius: 8px !important; }
-    .v-expansion-panel-title { color: #c0c0c0 !important; font-weight: 500 !important; }
-    .v-expansion-panel--active .v-expansion-panel-title { color: ${theme.primary} !important; }
-    .v-expansion-panel-text { color: #a0a0a0 !important; }
-
-    /* ═══ SLIDERS ═══ */
-    .v-slider-track__background { background: ${theme.primary}33 !important; }
-    .v-slider-track__fill { background: ${theme.primary} !important; ${glow ? `box-shadow: 0 0 8px ${theme.primary}66 !important;` : ''} }
-    .v-slider-thumb__surface { background: ${theme.primary} !important; ${glow ? `box-shadow: 0 0 12px ${theme.primary}88 !important;` : ''} }
-
-    /* ═══ SNACKBAR / ALERTS ═══ */
-    .v-snackbar__wrapper { background: ${theme.surface} !important; border: 1px solid ${theme.primary}44 !important; ${glow ? `box-shadow: 0 8px 30px ${theme.primary}33 !important;` : ''} }
-    .v-alert { border: 1px solid ${theme.primary}44 !important; border-radius: 8px !important; }
-
-    /* ═══ MISC ═══ */
-    .v-divider { border-color: ${theme.primary}22 !important; }
-    .v-tooltip > .v-overlay__content { background: ${theme.surface} !important; border: 1px solid ${theme.primary}44 !important; color: ${theme.primary} !important; font-family: 'JetBrains Mono', monospace !important; font-size: 0.8rem !important; ${glow ? `box-shadow: 0 4px 20px ${theme.primary}33 !important;` : ''} }
-    .v-avatar { border: 2px solid ${theme.primary}44 !important; ${glow ? `box-shadow: 0 0 15px ${theme.primary}22 !important;` : ''} }
-    .v-badge__badge { background: ${theme.primary} !important; color: ${theme.background} !important; font-weight: 600 !important; ${glow ? `box-shadow: 0 0 10px ${theme.primary}66 !important;` : ''} }
-    .v-btn--fab { background: linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 100%) !important; ${glow ? `box-shadow: 0 6px 25px ${theme.primary}66 !important;` : ''} }
-    .v-btn--fab:hover { ${anim ? 'transform: scale(1.1) !important;' : ''} ${glow ? `box-shadow: 0 10px 40px ${theme.primary}88 !important;` : ''} }
-    .v-menu__content { background: ${theme.surface} !important; border: 1px solid ${theme.primary}33 !important; border-radius: 8px !important; }
-    .v-pagination__item { background: ${theme.surface} !important; border: 1px solid ${theme.primary}33 !important; color: #a0a0a0 !important; }
-    .v-pagination__item--is-active { background: ${theme.primary} !important; color: ${theme.background} !important; ${glow ? `box-shadow: 0 0 15px ${theme.primary}66 !important;` : ''} }
-    .v-timeline-item__dot { background: ${theme.primary} !important; ${glow ? `box-shadow: 0 0 15px ${theme.primary}66 !important;` : ''} }
-    .v-timeline-divider__inner-dot { background: ${theme.primary} !important; }
-    .v-sparkline path { stroke: ${theme.primary} !important; }
-    .v-icon { color: ${theme.primary}cc !important; }
-    .text-success .v-icon, .text-success { color: ${theme.primary} !important; }
-    .text-error .v-icon, .text-error { color: #ff4444 !important; }
-    .text-warning .v-icon, .text-warning { color: #ffaa00 !important; }
-
-    /* ═══ SKELETON LOADERS ═══ */
-    .v-skeleton-loader__bone { background: linear-gradient(90deg, ${theme.surface} 0%, ${theme.primary}22 50%, ${theme.surface} 100%) !important; background-size: 200% 100% !important; animation: skeleton-loading 1.5s infinite !important; }
-    @keyframes skeleton-loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-
-    /* ═══ SCANLINES EFFECT ═══ */
-    ${options.value.enableScanlines ? `
-    body::before {
-      content: '';
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 9999;
-      background: repeating-linear-gradient(0deg, transparent, transparent 2px, ${theme.primary}05 2px, ${theme.primary}05 4px);
-      animation: scanlines 0.1s linear infinite;
-    }
-    @keyframes scanlines { 0% { transform: translateY(0); } 100% { transform: translateY(4px); } }
-    ` : ''}
-
-    /* ═══ CUSTOM ANIMATIONS ═══ */
-    ${anim ? `
-    @keyframes glow-pulse { 0%, 100% { box-shadow: 0 0 20px ${theme.primary}22; } 50% { box-shadow: 0 0 30px ${theme.primary}44; } }
-    .v-card { animation: glow-pulse 4s ease-in-out infinite; }
-    ` : ''}
-  `;
-  document.head.appendChild(styleEl);
-};
-
-const removeThemeStyles = () => {
-  const existing = document.getElementById('riddix-theme-styles');
-  if (existing) {
-    existing.remove();
-  }
+const resetAll = async () => {
+  if (!confirm('Reset all Frontend Customizer settings to defaults? Export first if you want to keep them.')) return;
+  applyLoadedConfig({});
+  await persistConfig(buildConfig());
 };
 
 onMounted(async () => {
   try {
-    // First, try to load from localStorage (instant)
-    const storedConfig = loadFromLocalStorage();
-    if (storedConfig) {
-      applyLoadedConfig(storedConfig);
-      if (currentTheme.value) {
-        applyThemeStyles(currentTheme.value);
-      }
+    engine = await loadEngine();
+    if (engine) {
+      builtInThemes.value = engine.themes;
+      menuItems.value = engine.menuItems;
+    } else {
+      saveError.value = 'theme-loader.js could not be loaded. Reinstall the plugin, then reload this page.';
     }
 
-    // Then try to fetch from API (may override localStorage)
-    try {
-      await fetchSettings();
-    } catch (apiError) {
-      console.warn('Could not fetch from API, using localStorage:', apiError);
-    }
+    // First, load from localStorage (instant)
+    const storedConfig = loadFromLocalStorage();
+    applyLoadedConfig(storedConfig || {});
+
+    // Then fetch from API (may override localStorage)
+    await fetchSettings();
   } catch (e) {
     console.error('Failed to initialize:', e);
   } finally {

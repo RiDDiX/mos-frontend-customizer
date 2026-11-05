@@ -1,7 +1,7 @@
 # 🎨 Frontend Customizer - MOS
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.2.0-ff6b00?style=for-the-badge&labelColor=0a0a0a" alt="Version">
+  <img src="https://img.shields.io/badge/Version-2.4.0-ff6b00?style=for-the-badge&labelColor=0a0a0a" alt="Version">
   <img src="https://img.shields.io/badge/MOS-Compatible-00d4ff?style=for-the-badge&labelColor=0a0a0a" alt="MOS Compatible">
   <img src="https://img.shields.io/badge/License-MIT-7b68ee?style=for-the-badge&labelColor=0a0a0a" alt="License">
 </p>
@@ -79,6 +79,14 @@ Clean, bright, precision engineering - The ultimate light theme.
 - 📊 **Matrix Tables** - Styled data tables with hover effects
 - 🎚️ **Custom Scrollbars** - Themed scrollbars matching the aesthetic
 - ⚡ **Smooth Animations** - Pulse and glow animations
+- **Custom Themes** - Build your own palette, including text and button colours
+- **Branding** - App name, logo, browser tab icon and title prefix, optional login page branding
+- **Background Image** - Any image URL with blur and dim
+- **Font & UI Scale** - System, Roboto, Helvetica, Serif or Monospace; scale the whole UI from 80 to 125 %
+- **Card Style & Corner Radius** - Flat, outlined or glass cards; square to round corners
+- **Custom CSS** - Your own CSS on every page, with a `?nocss` safe mode
+- **Menu** - Hide or reorder the main menu entries
+- **Backup** - Export, import and reset all settings as JSON
 
 ---
 
@@ -125,13 +133,28 @@ Then add this line to `/var/www/index.html` inside the `<head>` tag:
 
 Once installed, the theme plugin will appear in the MOS plugin list. Navigate to:
 
-**Plugins → RiDDiX Theme**
+**Plugins → Frontend Customizer - MOS**
 
 From there you can:
-- Select and preview different themes
-- Enable/disable glow effects
-- Enable/disable scanline overlay
-- Enable/disable animations
+- Select a built-in theme or create your own
+- Enable/disable glow effects, scanline overlay and animations
+- Set app name, logo, browser tab icon and title prefix, and brand the login page
+- Set a background image, font, UI scale, card style and corner radius
+- Add custom CSS
+- Hide or reorder menu entries
+- Export, import or reset all settings
+
+Changes apply right away on every page; no reload needed. Settings are stored on the server
+and follow you to every browser you log in with.
+
+The sidebar or header menu layout and menu groups are MOS settings in your profile.
+Reordering menu entries applies while menu groups are off.
+
+**Safe mode:** if custom CSS breaks the UI, open MOS with `?nocss` at the end of the URL
+(for example `http://your-server/plugins/frontend-customizer?nocss`), then fix or clear the CSS.
+
+**Upgrading from 2.3.x:** the plugin's own header navigation and header plugin shortcuts are
+gone. Use the native horizontal menu in your MOS profile instead. Hidden menu entries are kept.
 
 ## 📁 Project Structure
 

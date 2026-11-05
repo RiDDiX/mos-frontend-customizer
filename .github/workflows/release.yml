@@ -112,9 +112,11 @@ jobs:
         ### Features:
         - 6 Built-in themes
         - Custom theme creator
-        - Branding options
-        - Layout settings (Header/Sidebar)
-        - Header Plugin Shortcuts
+        - Branding: app name, logo, tab icon and title, login page
+        - Background image, font, UI scale, card style, corner radius
+        - Custom CSS with ?nocss safe mode
+        - Hide and reorder menu entries
+        - Export, import and reset settings
         
         Install via MOS Hub with template: https://github.com/RiDDiX/mos-templates
         EOF

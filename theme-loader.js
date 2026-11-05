@@ -1,62 +1,58 @@
 /**
  * Frontend Customizer - MOS - Theme Loader
- * 
- * This script loads the saved theme from localStorage and applies it
- * BEFORE Vue/MOS loads, preventing flash of unstyled content.
- * 
- * Add this to /var/www/mos-frontend/index.html:
+ *
+ * The one engine that applies every customization: theme CSS, menu, appearance,
+ * custom CSS and branding. install.sh / postinst add it as the first child of <head>:
  * <script src="/mos-plugins/frontend-customizer/theme-loader.js"></script>
+ * It applies the config saved in localStorage before Vue renders, keeps branding in
+ * sync while MOS renders, and exposes window.FrontendCustomizer for the plugin page.
+ * Add ?nocss to the URL to skip custom CSS (safe mode).
  */
 (function() {
   'use strict';
-  
+
   const STORAGE_KEY = 'frontend-customizer-config';
-  
-  const themes = {
-    'riddix-theme': {
-      primary: '#ff6b00',
-      secondary: '#cc5500',
-      accent: '#ffaa00',
-      background: '#0d0d0d',
-      surface: '#1a1a1a',
-    },
-    'hacker-green': {
-      primary: '#00ff41',
-      secondary: '#008f11',
-      accent: '#00ff41',
-      background: '#0d0d0d',
-      surface: '#1a1a1a',
-    },
-    'cyber-blue': {
-      primary: '#00d4ff',
-      secondary: '#0066cc',
-      accent: '#ff00ff',
-      background: '#0a0a14',
-      surface: '#14141e',
-    },
-    'matrix-green': {
-      primary: '#00ff00',
-      secondary: '#003300',
-      accent: '#00ff00',
-      background: '#000000',
-      surface: '#0a0a0a',
-    },
-    'nos-nitro': {
-      primary: '#ff6600',
-      secondary: '#ff3300',
-      accent: '#ffcc00',
-      background: '#0a0505',
-      surface: '#1a0a0a',
-      hasRallyStripes: true,
-    },
-    'lumina-circuit': {
-      primary: '#0066ff',
-      secondary: '#00a8e8',
-      accent: '#7c3aed',
-      background: '#f0f4f8',
-      surface: '#ffffff',
-      isLight: true,
-    },
+
+  const themeList = [
+    { id: 'riddix-theme', name: 'RiDDiX', description: 'Signature orange tech style - the original', icon: 'mdi-alpha-r-circle',
+      primary: '#ff6b00', secondary: '#cc5500', accent: '#ffaa00', background: '#0d0d0d', surface: '#1a1a1a' },
+    { id: 'hacker-green', name: 'Hacker', description: 'Neon green on deep black - classic terminal vibes', icon: 'mdi-console',
+      primary: '#00ff41', secondary: '#008f11', accent: '#00ff41', background: '#0d0d0d', surface: '#1a1a1a' },
+    { id: 'cyber-blue', name: 'Cyber Blue', description: 'Electric blue cyberpunk aesthetic', icon: 'mdi-chip',
+      primary: '#00d4ff', secondary: '#0066cc', accent: '#ff00ff', background: '#0a0a14', surface: '#14141e' },
+    { id: 'matrix-green', name: 'Matrix', description: 'Pure green terminal - enter the matrix', icon: 'mdi-matrix',
+      primary: '#00ff00', secondary: '#003300', accent: '#00ff00', background: '#000000', surface: '#0a0a0a' },
+    { id: 'nos-nitro', name: 'NOS Nitro', description: 'Blazing fast - orange flames & nitro boost', icon: 'mdi-fire',
+      primary: '#ff6600', secondary: '#ff3300', accent: '#ffcc00', background: '#0a0505', surface: '#1a0a0a', hasRallyStripes: true },
+    { id: 'lumina-circuit', name: 'Lumina Circuit', description: 'Clean & bright - precision engineering in light', icon: 'mdi-lightbulb-on',
+      primary: '#0066ff', secondary: '#00a8e8', accent: '#7c3aed', background: '#f0f4f8', surface: '#ffffff', isLight: true },
+  ];
+  const themes = {};
+  themeList.forEach(function(t) { themes[t.id] = t; });
+
+  // Top-level entries of the native MOS menu (mos-frontend src/layouts/AppShell.vue), in native order.
+  const menuItems = [
+    { id: 'dashboard', title: 'Dashboard', icon: 'mdi-view-dashboard', route: '/dashboard' },
+    { id: 'disks', title: 'Disks', icon: 'mdi-harddisk', route: '/disks' },
+    { id: 'pools', title: 'Pools', icon: 'mdi-view-array', route: '/pools' },
+    { id: 'shares', title: 'Shares', icon: 'mdi-share', route: '/shares' },
+    { id: 'remoteMounting', title: 'Remote Mounting', icon: 'mdi-cloud-sync', route: '/remoteMounting' },
+    { id: 'mosHub', title: 'MOS Hub', icon: 'mdi-hub', route: '/mosHub' },
+    { id: 'docker', title: 'Docker', icon: 'mdi-docker', route: '/docker' },
+    { id: 'lxc', title: 'LXC', icon: 'mdi-package-variant', route: '/lxc' },
+    { id: 'vm', title: 'VM', icon: 'mdi-monitor-account', route: '/vm' },
+    { id: 'plugins', title: 'Plugins', icon: 'mdi-puzzle', route: '/plugins' },
+    { id: 'webTerminal', title: 'Terminal', icon: 'mdi-console', route: '/mosTools/webterminal' },
+    { id: 'fileBrowser', title: 'File Browser', icon: 'mdi-folder', route: '/mosTools/filebrowser' },
+    { id: 'mosSettings', title: 'Settings', icon: 'mdi-cog', route: '/mosSettings' },
+  ];
+
+  const fonts = {
+    system: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+    roboto: "Roboto, 'Helvetica Neue', Arial, sans-serif",
+    sans: "'Helvetica Neue', Helvetica, Arial, sans-serif",
+    serif: "Georgia, 'Times New Roman', serif",
+    mono: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
   };
 
   function loadConfig() {
@@ -68,215 +64,207 @@
     }
   }
 
-  // Resolve a theme id against built-ins first, then saved custom themes,
-  // so a user-created theme also applies before Vue mounts.
+  // Values below end up in CSS text or DOM attributes; anything else is dropped.
+  function hex(value, fallback) {
+    return typeof value === 'string' && /^#[0-9a-f]{3,8}$/i.test(value) ? value : fallback;
+  }
+
+  // http(s) URL, same-origin path, or a base64 image. No quotes, spaces or parens, so url("...") stays closed.
+  function safeUrl(value) {
+    if (typeof value !== 'string') return '';
+    const url = value.trim();
+    const ok = /^(https?:\/\/|\/(?!\/))[^\s"'\\()<>]*$/i.test(url) ||
+      /^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,[a-z0-9+/=]+$/i.test(url);
+    return ok ? url : '';
+  }
+
+  function clamp(value, min, max, fallback) {
+    const n = Number(value);
+    return Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : fallback;
+  }
+
+  // Resolve a theme id against built-ins first, then saved custom themes.
   function resolveTheme(config) {
     if (!config || !config.theme) return null;
     if (themes[config.theme]) return themes[config.theme];
     if (Array.isArray(config.customThemes)) {
-      return config.customThemes.find(function (t) {
+      return config.customThemes.find(function(t) {
         return t && t.id === config.theme;
       }) || null;
     }
     return null;
   }
 
-  function applyBranding(config) {
-    if (!config || !config.customization) return;
-    
-    const custom = config.customization;
-    
-    // Wait for DOM to be ready
-    const applyWhenReady = () => {
-      // Apply custom app name
-      if (custom.appName) {
-        const titleEl = document.querySelector('.v-toolbar-title__placeholder');
-        if (titleEl) {
-          titleEl.textContent = custom.appName;
-        }
-      }
-      
-      // Apply custom logo
-      if (custom.logoUrl) {
-        const logoImg = document.querySelector('.v-app-bar img.v-img__img');
-        if (logoImg) {
-          logoImg.src = custom.logoUrl;
-        }
-      }
-    };
-    
-    // Try immediately and also after DOM load
-    if (document.readyState === 'complete') {
-      setTimeout(applyWhenReady, 100);
-    } else {
-      document.addEventListener('DOMContentLoaded', () => {
-        setTimeout(applyWhenReady, 100);
-      });
-    }
-    
-    // Also observe for dynamic changes (Vue mounting)
-    const observer = new MutationObserver(() => {
-      applyWhenReady();
-    });
-    
-    if (document.body) {
-      observer.observe(document.body, { childList: true, subtree: true });
-      setTimeout(() => observer.disconnect(), 5000); // Stop after 5s
-    }
-  }
-
-  function applyLayout(config) {
-    if (!config || !config.layout || config.layout.navMode !== 'header') return;
-    
-    const layout = config.layout;
-    const baseTheme = resolveTheme(config) || themes['riddix-theme'];
-    
-    const applyWhenReady = () => {
-      // Check if already applied
-      if (document.getElementById('riddix-layout-styles')) return;
-      
-      const appBar = document.querySelector('.v-app-bar .v-toolbar__content');
-      if (!appBar) return;
-      
-      // Create layout styles
-      const layoutStyle = document.createElement('style');
-      layoutStyle.id = 'riddix-layout-styles';
-      layoutStyle.textContent = `
-        .v-navigation-drawer { display: none !important; }
-        .v-main { padding-left: 0 !important; }
-        .v-app-bar-nav-icon { display: none !important; }
-        
-        #riddix-header-nav {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          margin-left: 16px;
-          flex-wrap: wrap;
-        }
-        
-        #riddix-header-nav a {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          padding: 6px 12px;
-          border-radius: 6px;
-          text-decoration: none;
-          font-size: 11px;
-          font-family: 'JetBrains Mono', 'Fira Code', monospace;
-          color: #b0b0b0;
-          background: rgba(255,255,255,0.03);
-          border: 1px solid transparent;
-          transition: all 0.2s ease;
-          white-space: nowrap;
-        }
-        
-        #riddix-header-nav a:hover {
-          color: ${baseTheme.primary};
-          background: ${baseTheme.primary}18;
-          border-color: ${baseTheme.primary}44;
-          box-shadow: 0 0 10px ${baseTheme.primary}22;
-        }
-        
-        #riddix-header-nav a .v-icon { font-size: 14px; }
-        
-        @media (max-width: 960px) {
-          #riddix-header-nav { display: none; }
-          .v-app-bar-nav-icon { display: flex !important; }
-          .v-navigation-drawer { display: block !important; }
-        }
-      `;
-      document.head.appendChild(layoutStyle);
-      
-      // Create header navigation
-      const headerNav = document.createElement('nav');
-      headerNav.id = 'riddix-header-nav';
-      
-      const menuItems = layout.menuOrder || [];
-      menuItems.filter(item => item.visible).forEach(item => {
-        const link = document.createElement('a');
-        link.href = item.route;
-        link.innerHTML = '<span class="v-icon mdi ' + item.icon + '"></span><span>' + item.title + '</span>';
-        link.addEventListener('click', function(e) {
-          e.preventDefault();
-          window.history.pushState({}, '', item.route);
-          window.dispatchEvent(new PopStateEvent('popstate'));
-        });
-        headerNav.appendChild(link);
-      });
-      
-      // Add header plugins as direct links
-      const headerPlugins = layout.headerPlugins || [];
-      if (headerPlugins.length > 0) {
-        // Add separator
-        const separator = document.createElement('span');
-        separator.style.cssText = 'width: 1px; height: 20px; background: ' + baseTheme.primary + '44; margin: 0 8px;';
-        headerNav.appendChild(separator);
-        
-        // Add plugin links
-        headerPlugins.forEach(function(pluginName) {
-          const link = document.createElement('a');
-          link.href = '/plugins/' + pluginName;
-          link.innerHTML = '<span class="v-icon mdi mdi-puzzle"></span><span>' + pluginName + '</span>';
-          link.style.cssText = 'background: ' + baseTheme.primary + '11 !important; border-color: ' + baseTheme.primary + '33 !important;';
-          link.addEventListener('click', function(e) {
-            e.preventDefault();
-            window.history.pushState({}, '', '/plugins/' + pluginName);
-            window.dispatchEvent(new PopStateEvent('popstate'));
-          });
-          headerNav.appendChild(link);
-        });
-      }
-      
-      const toolbarTitle = appBar.querySelector('.v-toolbar-title');
-      if (toolbarTitle && toolbarTitle.nextSibling) {
-        appBar.insertBefore(headerNav, toolbarTitle.nextSibling);
-      } else {
-        appBar.appendChild(headerNav);
-      }
-    };
-    
-    if (document.readyState === 'complete') {
-      setTimeout(applyWhenReady, 200);
-    } else {
-      document.addEventListener('DOMContentLoaded', () => {
-        setTimeout(applyWhenReady, 200);
-      });
-    }
-    
-    const observer = new MutationObserver(() => {
-      if (!document.getElementById('riddix-header-nav')) {
-        applyWhenReady();
+  function menuCss(config) {
+    const layout = config.layout || {};
+    const entries = Array.isArray(layout.menuOrder) ? layout.menuOrder : [];
+    const byId = {};
+    menuItems.forEach(function(m) { byId[m.id] = m; });
+    const seen = {};
+    const ordered = [];
+    const rules = [];
+    entries.forEach(function(entry) {
+      const item = entry && byId[entry.id];
+      if (!item || seen[item.id]) return;
+      seen[item.id] = true;
+      ordered.push(item);
+      if (entry.visible === false) {
+        const a = 'a[href="' + item.route + '"]';
+        rules.push('.v-navigation-drawer ' + a + ', .horizontal-menu-container ' + a + ', .v-overlay__content .v-list ' + a + ' { display: none !important; }');
       }
     });
-    
-    if (document.body) {
-      observer.observe(document.body, { childList: true, subtree: true });
-      setTimeout(() => observer.disconnect(), 5000);
+    const reordered = ordered.some(function(item, i) { return menuItems.indexOf(item) !== i; });
+    if (reordered) {
+      // Order only top-level entries, and only while MOS shows the menu ungrouped.
+      const drawer = '.v-navigation-drawer .v-list:not(:has(> .v-list-group))';
+      const bar = '.horizontal-menu-left:not(:has(> [aria-haspopup]))';
+      rules.push(drawer + ' { display: flex; flex-direction: column; }');
+      rules.push(drawer + ' > *, ' + bar + ' > * { order: 100; }');
+      ordered.forEach(function(item, i) {
+        const a = 'a[href="' + item.route + '"]';
+        rules.push(drawer + ' > ' + a + ', ' + bar + ' > ' + a + ' { order: ' + (i + 1) + '; }');
+      });
     }
+    return rules.join('\n');
   }
 
-  function applyTheme(config) {
-    if (!config || !config.theme) return;
+  function appearanceCss(config) {
+    const a = config.appearance || {};
+    const rules = [];
+    const font = fonts[a.fontFamily];
+    if (font) {
+      rules.push(':root { --v-font-body: ' + font + '; --v-font-heading: ' + font + '; }');
+      // Same selectors the themes force a font on; the web terminal and code keep their monospace grid.
+      rules.push('html, body, .v-application, :is(p, span, div, h1, h2, h3, h4, h5, h6, .v-btn, button, input, textarea):not(.xterm *, code *, pre *) { font-family: ' + font + ' !important; }');
+    }
+    const scale = clamp(a.uiScale, 80, 125, 100);
+    if (scale !== 100) rules.push('html { font-size: ' + scale + '% !important; }');
+    const radius = a.radius === null || a.radius === '' || a.radius === undefined ? null : clamp(a.radius, 0, 32, null);
+    if (radius !== null) rules.push('html .v-card, html .v-alert, html .v-btn:not(.v-btn--icon) { border-radius: ' + radius + 'px !important; }');
+    if (a.cardStyle === 'flat') {
+      rules.push('html .v-card { box-shadow: none !important; border: none !important; }');
+    } else if (a.cardStyle === 'outlined') {
+      rules.push('html .v-card { box-shadow: none !important; border: 1px solid color-mix(in srgb, currentColor 22%, transparent) !important; }');
+    } else if (a.cardStyle === 'glass') {
+      rules.push('html .v-card { background: color-mix(in srgb, var(--riddix-surface, rgb(var(--v-theme-surface))) 62%, transparent) !important; backdrop-filter: blur(12px) saturate(140%); -webkit-backdrop-filter: blur(12px) saturate(140%); }');
+    }
+    const bg = safeUrl(a.backgroundUrl);
+    if (bg) {
+      const blur = clamp(a.backgroundBlur, 0, 20, 0);
+      const dim = clamp(a.backgroundDim, 0, 80, 0);
+      rules.push('html, body, .v-application, .v-main, .login-wrap, .login-wrap-mobile { background: transparent !important; }');
+      rules.push('html::before { content: ""; position: fixed; inset: ' + (-2 * blur) + 'px; z-index: -1; pointer-events: none; ' +
+        'background: url("' + bg + '") center / cover no-repeat; filter: blur(' + blur + 'px) brightness(' + (100 - dim) / 100 + '); }');
+    }
+    return rules.join('\n');
+  }
 
+  function setStyle(id, css, first) {
+    let el = document.getElementById(id);
+    if (!css) {
+      if (el) el.remove();
+      return;
+    }
+    if (!el) {
+      el = document.createElement('style');
+      el.id = id;
+      if (first && document.head.firstChild) document.head.insertBefore(el, document.head.firstChild);
+      else document.head.appendChild(el);
+    }
+    if (el.textContent !== css) el.textContent = css;
+  }
+
+  // ─── DOM sync: branding lives in elements Vue renders late and re-renders, so re-check after every change ───
+  let current = {};
+  let appliedTitlePrefix = '';
+  let syncQueued = false;
+
+  function setText(el, text) {
+    if (el && text && el.textContent !== text) el.textContent = text;
+  }
+
+  function setAttr(el, name, value) {
+    if (el && value && el.getAttribute(name) !== value) el.setAttribute(name, value);
+  }
+
+  function syncTitle(prefix) {
+    let title = document.title;
+    if (appliedTitlePrefix && title.indexOf(appliedTitlePrefix + ' | ') === 0) title = title.slice(appliedTitlePrefix.length + 3);
+    appliedTitlePrefix = prefix;
+    const want = prefix ? prefix + ' | ' + title : title;
+    if (document.title !== want) document.title = want;
+  }
+
+  function syncDom() {
+    const c = current.customization || {};
+    const appName = typeof c.appName === 'string' ? c.appName : '';
+    const logo = safeUrl(c.logoUrl);
+    setText(document.querySelector('.v-app-bar .v-toolbar-title__placeholder'), appName);
+    setAttr(document.querySelector('.v-app-bar .v-img__img'), 'src', logo);
+    if (c.loginBranding) {
+      const brand = document.querySelector('.brand'); // mos-frontend src/views/login.vue
+      if (brand) {
+        setAttr(brand.querySelector('.v-img__img'), 'src', logo);
+        setText(brand.querySelector('.brand__title'), appName);
+        setText(brand.querySelector('.brand__copy'), typeof c.loginMessage === 'string' ? c.loginMessage : '');
+      }
+    }
+    const icon = safeUrl(c.faviconUrl);
+    if (icon) {
+      let link = document.querySelector('link[rel~="icon"]');
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+      }
+      if (link.hasAttribute('type')) link.removeAttribute('type'); // MOS declares image/svg+xml
+      setAttr(link, 'href', icon);
+    }
+    syncTitle(typeof c.titlePrefix === 'string' ? c.titlePrefix.trim() : '');
+  }
+
+  function queueSync() {
+    if (syncQueued) return;
+    syncQueued = true;
+    (window.requestAnimationFrame || setTimeout)(function() {
+      syncQueued = false;
+      syncDom();
+    });
+  }
+
+  function apply(config) {
+    current = config && typeof config === 'object' ? config : {};
+    setStyle('riddix-theme-styles', themeCss(current), true);
+    setStyle('fc-menu-styles', menuCss(current));
+    setStyle('fc-appearance-styles', appearanceCss(current));
+    const css = current.appearance && typeof current.appearance.customCss === 'string' ? current.appearance.customCss : '';
+    setStyle('fc-custom-css', /[?&]nocss\b/.test(location.search) ? '' : css);
+    queueSync();
+  }
+
+  function themeCss(config) {
     const baseTheme = resolveTheme(config);
-    if (!baseTheme) return;
+    if (!baseTheme) return '';
 
     // Apply custom color overrides if set
     const custom = config.customization || {};
+    const primary = hex(custom.primaryColor, hex(baseTheme.primary, '#ff6b00'));
+    const background = hex(baseTheme.background, '#0d0d0d');
     const theme = {
-      primary: custom.primaryColor || baseTheme.primary,
-      secondary: custom.secondaryColor || baseTheme.secondary,
-      accent: custom.accentColor || baseTheme.accent,
-      background: baseTheme.background,
-      surface: baseTheme.surface,
+      primary: primary,
+      secondary: hex(custom.secondaryColor, hex(baseTheme.secondary, primary)),
+      accent: hex(custom.accentColor, hex(baseTheme.accent, primary)),
+      background: background,
+      surface: hex(baseTheme.surface, '#1a1a1a'),
+      text: hex(baseTheme.textColor, baseTheme.isLight ? '#000000' : '#e0e0e0'),
+      btn: hex(custom.buttonColor, hex(baseTheme.buttonColor, primary)),
+      btnText: hex(custom.buttonTextColor, hex(baseTheme.buttonTextColor, background)),
     };
 
     const glow = config.enableGlow !== false;
     const anim = config.enableAnimations !== false;
 
-    const styleEl = document.createElement('style');
-    styleEl.id = 'riddix-theme-styles';
-    styleEl.textContent = `
+    return `
       /* ═══════════════════════════════════════════════════════════════
          RiDDiX HACKER THEME - Complete Redesign
          Theme: ${config.theme}
@@ -295,13 +283,13 @@
       /* ═══ GLOBAL STYLES ═══ */
       html, body {
         background-color: ${theme.background} !important;
-        color: ${baseTheme.isLight ? '#000000' : '#e0e0e0'} !important;
+        color: ${theme.text} !important;
       }
 
       .v-application {
         background-color: ${theme.background} !important;
         font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace !important;
-        color: ${baseTheme.isLight ? '#000000' : '#e0e0e0'} !important;
+        color: ${theme.text} !important;
       }
 
       /* ═══ LUMINA CIRCUIT LIGHT THEME ═══ */
@@ -643,34 +631,34 @@
       }
 
       .v-btn--variant-elevated, .v-btn--variant-flat {
-        background: linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 100%) !important;
-        color: ${theme.background} !important;
+        background: linear-gradient(135deg, ${theme.btn} 0%, ${theme.secondary} 100%) !important;
+        color: ${theme.btnText} !important;
         border: none !important;
-        ${glow ? `box-shadow: 0 4px 15px ${theme.primary}44 !important;` : ''}
+        ${glow ? `box-shadow: 0 4px 15px ${theme.btn}44 !important;` : ''}
       }
 
       .v-btn--variant-elevated:hover, .v-btn--variant-flat:hover {
         ${anim ? 'transform: translateY(-2px) scale(1.02) !important;' : ''}
-        ${glow ? `box-shadow: 0 6px 25px ${theme.primary}66 !important;` : ''}
+        ${glow ? `box-shadow: 0 6px 25px ${theme.btn}66 !important;` : ''}
       }
 
       .v-btn--variant-outlined {
-        border: 1px solid ${theme.primary}66 !important;
-        color: ${theme.primary} !important;
+        border: 1px solid ${theme.btn}66 !important;
+        color: ${theme.btn} !important;
         background: transparent !important;
       }
 
       .v-btn--variant-outlined:hover {
-        background: ${theme.primary}11 !important;
-        border-color: ${theme.primary} !important;
+        background: ${theme.btn}11 !important;
+        border-color: ${theme.btn} !important;
       }
 
       .v-btn--variant-text {
-        color: ${theme.primary} !important;
+        color: ${theme.btn} !important;
       }
 
       .v-btn--variant-text:hover {
-        background: ${theme.primary}11 !important;
+        background: ${theme.btn}11 !important;
       }
 
       .v-btn--icon {
@@ -678,12 +666,12 @@
       }
 
       .v-btn--icon:hover {
-        background: ${theme.primary}22 !important;
-        ${glow ? `box-shadow: 0 0 15px ${theme.primary}44 !important;` : ''}
+        background: ${theme.btn}22 !important;
+        ${glow ? `box-shadow: 0 0 15px ${theme.btn}44 !important;` : ''}
       }
 
       .v-btn .v-icon {
-        ${glow ? `filter: drop-shadow(0 0 2px ${theme.primary}44);` : ''}
+        ${glow ? `filter: drop-shadow(0 0 2px ${theme.btn}44);` : ''}
       }
 
       /* ═══ DATA TABLES ═══ */
@@ -1454,34 +1442,33 @@
         }
       }
     `;
-    
-    // Insert at the beginning of head for immediate effect
-    if (document.head) {
-      document.head.insertBefore(styleEl, document.head.firstChild);
-    } else {
-      // If head doesn't exist yet, wait for it
-      document.addEventListener('DOMContentLoaded', function() {
-        document.head.insertBefore(styleEl, document.head.firstChild);
-      });
-    }
   }
 
-  // Load and apply immediately
-  const config = loadConfig();
-  if (config && config.theme) {
-    applyTheme(config);
-    console.log('[RiDDiX Theme] Loaded theme:', config.theme);
+  window.FrontendCustomizer = { themes: themeList, menuItems: menuItems, fonts: Object.keys(fonts), apply: apply };
+
+  // Pull the server copy once per page load, so every browser follows the last save.
+  function syncFromServer() {
+    const token = localStorage.getItem('authToken');
+    if (!token || typeof fetch !== 'function') return;
+    const before = localStorage.getItem(STORAGE_KEY);
+    fetch('/api/v1/mos/plugins/settings/frontend-customizer', { headers: { Authorization: 'Bearer ' + token } })
+      .then(function(res) { return res.ok ? res.json() : null; })
+      .then(function(data) {
+        // No layout = the install seed, not a save (the plugin page pushes this browser's copy then).
+        // A save made on this page while the request ran wins.
+        if (!data || typeof data !== 'object' || !data.layout || localStorage.getItem(STORAGE_KEY) !== before) return;
+        const json = JSON.stringify(data);
+        if (json === before) return;
+        localStorage.setItem(STORAGE_KEY, json);
+        apply(data);
+      })
+      .catch(function() {});
   }
-  
-  // Apply branding (logo, name) even if no theme is selected
-  if (config && config.customization) {
-    applyBranding(config);
-    console.log('[RiDDiX Theme] Applied branding customization');
-  }
-  
-  // Apply layout (header navigation) if configured
-  if (config && config.layout) {
-    applyLayout(config);
-    console.log('[RiDDiX Theme] Applied layout:', config.layout.navMode);
-  }
+
+  // Load and apply immediately, then keep branding in sync while MOS renders.
+  apply(loadConfig() || {});
+  syncFromServer();
+  new MutationObserver(queueSync).observe(document.documentElement, {
+    subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['src', 'href'],
+  });
 })();
