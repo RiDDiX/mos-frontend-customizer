@@ -1,7 +1,7 @@
 # 🎨 Frontend Customizer - MOS
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.4.1-ff6b00?style=for-the-badge&labelColor=0a0a0a" alt="Version">
+  <img src="https://img.shields.io/badge/Version-2.5.0-ff6b00?style=for-the-badge&labelColor=0a0a0a" alt="Version">
   <img src="https://img.shields.io/badge/MOS-Compatible-00d4ff?style=for-the-badge&labelColor=0a0a0a" alt="MOS Compatible">
   <img src="https://img.shields.io/badge/License-MIT-7b68ee?style=for-the-badge&labelColor=0a0a0a" alt="License">
 </p>
@@ -62,8 +62,8 @@ Blazing fast racing aesthetic with rally stripes!
 ### 6. Lumina Circuit 💡
 Clean, bright, precision engineering - The ultimate light theme.
 
-- **Primary:** `#0066ff` (Electric Blue)
-- **Secondary:** `#00a8e8` (Sky Cyan)
+- **Primary:** `#0057e0` (Electric Blue)
+- **Secondary:** `#0088cc` (Sky Cyan)
 - **Accent:** `#7c3aed` (Tech Purple)
 - **Background:** `#f0f4f8` (Cloud White)
 - **Surface:** `#ffffff` (Pure White)
@@ -81,6 +81,7 @@ Clean, bright, precision engineering - The ultimate light theme.
 - ⚡ **Smooth Animations** - Pulse and glow animations
 - **Custom Themes** - Build your own palette, including text and button colours
 - **Branding** - App name, logo, browser tab icon and title prefix, optional login page branding
+- **Icons** - Upload your own logo, tab icon or background image right from the plugin page
 - **Background Image** - Any image URL with blur and dim
 - **Font & UI Scale** - System, Roboto, Helvetica, Serif or Monospace; scale the whole UI from 80 to 125 %
 - **Card Style & Corner Radius** - Flat, outlined or glass cards; square to round corners
@@ -150,6 +151,13 @@ and follow you to every browser you log in with.
 The sidebar or header menu layout and menu groups are MOS settings in your profile.
 Reordering menu entries applies while menu groups are off.
 
+### Icons
+
+The folder button next to the logo, browser tab icon and background image fields opens an image picker.
+Pick a built-in MOS image, enter a URL, or upload an image (PNG, JPEG, GIF, WebP or ICO, up to 2 MB; no SVG).
+Uploads are stored in `/var/www/mos-plugins/frontend-customizer/icons` and served from
+`/_plugins/frontend-customizer/icons/`. They survive plugin updates and are removed when the plugin is uninstalled.
+
 **Safe mode:** if custom CSS breaks the UI, open MOS with `?nocss` at the end of the URL
 (for example `http://your-server/plugins/frontend-customizer?nocss`), then fix or clear the CSS.
 
@@ -160,14 +168,20 @@ After updating, hard-reload once (Ctrl+F5 / Cmd+Shift+R) so the browser drops th
 ## 📁 Project Structure
 
 ```
-mos-theme-riddix/
+mos-frontend-customizer/
 ├── page/                    # Vue plugin source
 │   ├── src/
 │   │   ├── Plugin.vue       # Main plugin component
+│   │   ├── ColorField.vue   # Colour swatch + picker field
 │   │   └── main.js          # Entry point
 │   ├── plugin.config.js     # Plugin metadata
 │   ├── vite.config.js       # Build configuration
 │   └── package.json
+├── theme-loader.js          # Style engine injected into MOS index.html
+├── functions                # MOS lifecycle hooks (install, update, uninstall)
+├── install.sh               # Manual installer
+├── uninstall.sh             # Manual uninstaller
+├── check.mjs                # Regression checks (node check.mjs)
 ├── settings.json            # Default settings
 ├── README.md
 └── LICENSE
@@ -182,7 +196,7 @@ mos-theme-riddix/
 | Cyber Blue | `#00d4ff` | `#0066cc` | `#ff00ff` | `#0a0a14` |
 | Matrix | `#00ff00` | `#003300` | `#00ff00` | `#000000` |
 | NOS Nitro | `#ff6600` | `#ff3300` | `#ffcc00` | `#0a0505` |
-| Lumina Circuit | `#0066ff` | `#00a8e8` | `#7c3aed` | `#f0f4f8` |
+| Lumina Circuit | `#0057e0` | `#0088cc` | `#7c3aed` | `#f0f4f8` |
 
 ## 🤝 Contributing
 

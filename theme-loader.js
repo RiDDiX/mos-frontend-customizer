@@ -17,15 +17,15 @@
     { id: 'riddix-theme', name: 'RiDDiX', description: 'Signature orange tech style - the original', icon: 'mdi-alpha-r-circle',
       primary: '#ff6b00', secondary: '#cc5500', accent: '#ffaa00', background: '#0d0d0d', surface: '#1a1a1a' },
     { id: 'hacker-green', name: 'Hacker', description: 'Neon green on deep black - classic terminal vibes', icon: 'mdi-console',
-      primary: '#00ff41', secondary: '#008f11', accent: '#00ff41', background: '#0d0d0d', surface: '#1a1a1a' },
+      primary: '#00ff41', secondary: '#008f11', accent: '#39ff14', background: '#0d0d0d', surface: '#1a1a1a' },
     { id: 'cyber-blue', name: 'Cyber Blue', description: 'Electric blue cyberpunk aesthetic', icon: 'mdi-chip',
       primary: '#00d4ff', secondary: '#0066cc', accent: '#ff00ff', background: '#0a0a14', surface: '#14141e' },
     { id: 'matrix-green', name: 'Matrix', description: 'Pure green terminal - enter the matrix', icon: 'mdi-matrix',
-      primary: '#00ff00', secondary: '#003300', accent: '#00ff00', background: '#000000', surface: '#0a0a0a' },
+      primary: '#00ff00', secondary: '#00aa00', accent: '#66ff66', background: '#000000', surface: '#0a0a0a' },
     { id: 'nos-nitro', name: 'NOS Nitro', description: 'Blazing fast - orange flames & nitro boost', icon: 'mdi-fire',
       primary: '#ff6600', secondary: '#ff3300', accent: '#ffcc00', background: '#0a0505', surface: '#1a0a0a', hasRallyStripes: true },
     { id: 'lumina-circuit', name: 'Lumina Circuit', description: 'Clean & bright - precision engineering in light', icon: 'mdi-lightbulb-on',
-      primary: '#0066ff', secondary: '#00a8e8', accent: '#7c3aed', background: '#f0f4f8', surface: '#ffffff', isLight: true },
+      primary: '#0057e0', secondary: '#0088cc', accent: '#7c3aed', background: '#f0f4f8', surface: '#ffffff', isLight: true },
   ];
   const themes = {};
   themeList.forEach(function(t) { themes[t.id] = t; });
@@ -67,6 +67,22 @@
   // Values below end up in CSS text or DOM attributes; anything else is dropped.
   function hex(value, fallback) {
     return typeof value === 'string' && /^#[0-9a-f]{3,8}$/i.test(value) ? value : fallback;
+  }
+
+  // Black or white, whichever contrasts more with the hex colour c (WCAG relative luminance).
+  function onColor(c) {
+    const h = c.length < 6 ? c.slice(1, 4).replace(/./g, '$&$&') : c.slice(1, 7);
+    const l = [0.2126, 0.7152, 0.0722].reduce(function(sum, w, i) {
+      const v = parseInt(h.substr(i * 2, 2), 16) / 255;
+      return sum + w * (v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+    }, 0);
+    return l > 0.179 ? '#000000' : '#ffffff';
+  }
+
+  // Vuetify keeps theme colours as "r, g, b" triplets.
+  function rgb(c) {
+    const h = c.length < 6 ? c.slice(1, 4).replace(/./g, '$&$&') : c.slice(1, 7);
+    return [0, 2, 4].map(function(i) { return parseInt(h.substr(i, 2), 16); }).join(', ');
   }
 
   // http(s) URL, same-origin path, or a base64 image. No quotes, spaces or parens, so url("...") stays closed.
@@ -250,16 +266,21 @@
     const custom = config.customization || {};
     const primary = hex(custom.primaryColor, hex(baseTheme.primary, '#ff6b00'));
     const background = hex(baseTheme.background, '#0d0d0d');
+    const btn = hex(custom.buttonColor, hex(baseTheme.buttonColor, primary));
+    // Custom themes carry no isLight flag, so a light background decides too.
+    const light = baseTheme.isLight || onColor(background) === '#000000';
     const theme = {
       primary: primary,
       secondary: hex(custom.secondaryColor, hex(baseTheme.secondary, primary)),
       accent: hex(custom.accentColor, hex(baseTheme.accent, primary)),
       background: background,
       surface: hex(baseTheme.surface, '#1a1a1a'),
-      text: hex(baseTheme.textColor, baseTheme.isLight ? '#000000' : '#e0e0e0'),
-      btn: hex(custom.buttonColor, hex(baseTheme.buttonColor, primary)),
-      btnText: hex(custom.buttonTextColor, hex(baseTheme.buttonTextColor, background)),
+      text: hex(baseTheme.textColor, light ? '#000000' : '#e0e0e0'),
+      btn: btn,
+      btnText: hex(custom.buttonTextColor, hex(baseTheme.buttonTextColor, onColor(btn))),
     };
+    const textMuted = light ? '#5f6b7a' : '#a8adb3';
+    const textBody = light ? '#1f2933' : '#c8ccd0';
 
     const glow = config.enableGlow !== false;
     const anim = config.enableAnimations !== false;
@@ -278,6 +299,23 @@
         --riddix-surface: ${theme.surface};
         --riddix-glow: ${glow ? `0 0 20px ${theme.primary}44` : 'none'};
         --riddix-glow-intense: ${glow ? `0 0 30px ${theme.primary}66` : 'none'};
+      }
+
+      /* Vuetify's own theme variables follow the palette; html raises specificity over .v-theme--* */
+      html .v-theme--dark, html .v-theme--light, html .v-application {
+        --v-theme-background: ${rgb(theme.background)};
+        --v-theme-surface: ${rgb(theme.surface)};
+        --v-theme-surface-bright: ${rgb(theme.surface)};
+        --v-theme-surface-light: ${rgb(theme.surface)};
+        --v-theme-surface-variant: ${rgb(theme.surface)};
+        --v-theme-on-background: ${rgb(theme.text)};
+        --v-theme-on-surface: ${rgb(theme.text)};
+        --v-theme-on-surface-variant: ${rgb(theme.text)};
+        --v-theme-primary: ${rgb(theme.primary)};
+        --v-theme-on-primary: ${rgb(onColor(theme.primary))};
+        --v-theme-secondary: ${rgb(theme.secondary)};
+        --v-theme-on-secondary: ${rgb(onColor(theme.secondary))};
+        --v-border-color: ${rgb(theme.text)};
       }
 
       /* ═══ GLOBAL STYLES ═══ */
@@ -347,10 +385,6 @@
         border-color: ${theme.primary}30 !important;
       }
       
-      .v-btn {
-        color: #000000 !important;
-      }
-      
       .v-btn--variant-elevated, .v-btn--variant-flat {
         background: linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 100%) !important;
         color: white !important;
@@ -367,19 +401,6 @@
       
       .v-list-item__title, .v-list-item-title {
         font-weight: 500 !important;
-      }
-      
-      .v-application .v-card,
-      .v-application .v-card *,
-      .v-application .v-list *,
-      .v-application .v-navigation-drawer *,
-      .v-application .v-toolbar *,
-      .v-application .v-app-bar * {
-        color: #000000;
-      }
-      
-      .v-application .v-icon {
-        color: #000000 !important;
       }
       
       .v-navigation-drawer .v-list-item--active {
@@ -535,15 +556,19 @@
       /* Selection */
       ::selection {
         background: ${theme.primary}44;
-        color: ${theme.primary};
+        color: ${theme.text};
       }
 
       /* ═══ APP BAR / HEADER ═══ */
       .v-app-bar, .v-toolbar {
         background: linear-gradient(180deg, ${theme.surface} 0%, ${theme.background} 100%) !important;
+        color: ${theme.text} !important;
         border-bottom: 1px solid ${theme.primary}33 !important;
         ${glow ? `box-shadow: 0 2px 20px ${theme.primary}22 !important;` : ''}
       }
+
+      /* Default MOS logos are white in the app bar and black on the login page: invert the one that would vanish */
+      ${!safeUrl(custom.logoUrl) ? `${light ? '.v-img__img[src$="mos_white.png"]' : '.v-img__img[src$="mos_black.png"]'} { filter: invert(1); }` : ''}
 
       .v-app-bar .v-toolbar-title {
         color: ${theme.primary} !important;
@@ -591,6 +616,7 @@
       /* ═══ CARDS ═══ */
       .v-card {
         background: linear-gradient(135deg, ${theme.surface} 0%, ${theme.background} 100%) !important;
+        color: ${theme.text} !important;
         border: 1px solid ${theme.primary}22 !important;
         border-radius: 12px !important;
         ${glow ? `box-shadow: 0 4px 30px ${theme.primary}11, inset 0 1px 0 ${theme.primary}11 !important;` : ''}
@@ -607,17 +633,14 @@
         color: ${theme.primary} !important;
         font-weight: 600 !important;
         font-size: 1.1rem !important;
-        border-bottom: 1px solid ${theme.primary}22;
-        padding-bottom: 12px !important;
-        margin-bottom: 12px !important;
       }
 
       .v-card-subtitle {
-        color: #888 !important;
+        color: ${textMuted} !important;
       }
 
       .v-card-text {
-        color: #b0b0b0 !important;
+        color: ${textBody} !important;
       }
 
       /* ═══ BUTTONS ═══ */
@@ -631,7 +654,7 @@
       }
 
       .v-btn--variant-elevated, .v-btn--variant-flat {
-        background: linear-gradient(135deg, ${theme.btn} 0%, ${theme.secondary} 100%) !important;
+        background: linear-gradient(135deg, ${theme.btn} 0%, color-mix(in srgb, ${theme.btn} 70%, ${theme.secondary}) 100%) !important;
         color: ${theme.btnText} !important;
         border: none !important;
         ${glow ? `box-shadow: 0 4px 15px ${theme.btn}44 !important;` : ''}
@@ -705,7 +728,7 @@
       }
 
       .v-data-table__tr td {
-        color: #c0c0c0 !important;
+        color: ${textBody} !important;
         border-bottom: 1px solid ${theme.primary}11 !important;
       }
 
@@ -732,11 +755,11 @@
       }
 
       .v-field__input {
-        color: #e0e0e0 !important;
+        color: ${theme.text} !important;
       }
 
       .v-label {
-        color: #888 !important;
+        color: ${textMuted} !important;
       }
 
       .v-field--focused .v-label {
@@ -757,6 +780,7 @@
 
       .v-list {
         background: transparent !important;
+        color: ${theme.text} !important;
       }
 
       .v-list-item {
@@ -772,7 +796,7 @@
       }
 
       .v-list-item-title {
-        color: #c0c0c0 !important;
+        color: ${textBody} !important;
       }
 
       .v-list-item--active .v-list-item-title {
@@ -787,7 +811,7 @@
         ${glow ? `box-shadow: 0 20px 60px ${theme.primary}22 !important;` : ''}
       }
 
-      .v-dialog .v-card {
+      .v-dialog > .v-overlay__content > .v-card {
         background: transparent !important;
         border: none !important;
         box-shadow: none !important;
@@ -804,7 +828,7 @@
 
       .v-chip--variant-elevated {
         background: linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 100%) !important;
-        color: ${theme.background} !important;
+        color: ${onColor(theme.primary)} !important;
         ${glow ? `box-shadow: 0 2px 10px ${theme.primary}44 !important;` : ''}
       }
 
@@ -852,7 +876,7 @@
       }
 
       .v-tab {
-        color: #888 !important;
+        color: ${textMuted} !important;
         text-transform: uppercase !important;
         letter-spacing: 1px !important;
         font-weight: 500 !important;
@@ -887,7 +911,7 @@
       }
 
       .v-expansion-panel-title {
-        color: #c0c0c0 !important;
+        color: ${textBody} !important;
         font-weight: 500 !important;
       }
 
@@ -896,7 +920,7 @@
       }
 
       .v-expansion-panel-text {
-        color: #a0a0a0 !important;
+        color: ${textMuted} !important;
       }
 
       /* ═══ SLIDERS ═══ */
@@ -950,7 +974,7 @@
       /* ═══ BADGES ═══ */
       .v-badge__badge {
         background: ${theme.primary} !important;
-        color: ${theme.background} !important;
+        color: ${onColor(theme.primary)} !important;
         font-weight: 600 !important;
         ${glow ? `box-shadow: 0 0 10px ${theme.primary}66 !important;` : ''}
       }
@@ -977,12 +1001,12 @@
       .v-pagination__item {
         background: ${theme.surface} !important;
         border: 1px solid ${theme.primary}33 !important;
-        color: #a0a0a0 !important;
+        color: ${textMuted} !important;
       }
 
       .v-pagination__item--is-active {
         background: ${theme.primary} !important;
-        color: ${theme.background} !important;
+        color: ${onColor(theme.primary)} !important;
         ${glow ? `box-shadow: 0 0 15px ${theme.primary}66 !important;` : ''}
       }
 
@@ -1004,18 +1028,6 @@
       /* ═══ ICONS ═══ */
       .v-icon {
         color: ${theme.primary}cc !important;
-      }
-
-      .text-success .v-icon, .text-success {
-        color: ${theme.primary} !important;
-      }
-
-      .text-error .v-icon, .text-error {
-        color: #ff4444 !important;
-      }
-
-      .text-warning .v-icon, .text-warning {
-        color: #ffaa00 !important;
       }
 
       /* ═══ SKELETON LOADERS ═══ */
@@ -1064,10 +1076,6 @@
         text-shadow: ${glow ? `0 0 10px ${theme.primary}44` : 'none'};
       }
 
-      p, span, div {
-        font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace !important;
-      }
-
       a:not(.v-btn) {
         color: ${theme.primary} !important;
         text-decoration: none !important;
@@ -1088,7 +1096,7 @@
       }
 
       .v-breadcrumbs-item {
-        color: ${theme.primary}aa !important;
+        color: ${theme.primary} !important;
       }
 
       .v-breadcrumbs-divider {
@@ -1190,7 +1198,7 @@
 
       .v-date-picker-month__day--selected {
         background: ${theme.primary} !important;
-        color: ${theme.background} !important;
+        color: ${onColor(theme.primary)} !important;
         ${glow ? `box-shadow: 0 0 15px ${theme.primary}66 !important;` : ''}
       }
 
@@ -1244,7 +1252,7 @@
 
       /* ═══ TREEVIEW ═══ */
       .v-treeview-item {
-        color: #c0c0c0 !important;
+        color: ${textBody} !important;
       }
 
       .v-treeview-item--active {
@@ -1272,10 +1280,6 @@
         background: transparent !important;
       }
 
-      .v-row {
-        margin: 0 !important;
-      }
-
       /* ═══ SPARKLINE MINI CHARTS ═══ */
       .v-sparkline {
         stroke: ${theme.primary} !important;
@@ -1283,7 +1287,7 @@
 
       /* ═══ SNACKBAR VARIANTS ═══ */
       .v-snackbar--variant-success .v-snackbar__wrapper {
-        border-color: ${theme.primary} !important;
+        border-color: #00e676 !important;
       }
 
       .v-snackbar--variant-error .v-snackbar__wrapper {
@@ -1326,7 +1330,7 @@
         background: ${theme.surface} !important;
         padding: 12px 16px !important;
         margin: 12px 0 !important;
-        color: #a0a0a0 !important;
+        color: ${textMuted} !important;
       }
 
       /* ═══ HORIZONTAL RULE ═══ */
@@ -1342,17 +1346,9 @@
         border-color: #ff4444 !important;
       }
 
-      .v-messages__message {
-        color: ${theme.primary}aa !important;
-      }
-
-      .v-field--error .v-messages__message {
-        color: #ff4444 !important;
-      }
-
       /* ═══ FOCUS STATES ═══ */
       *:focus-visible {
-        outline: 2px solid ${theme.primary}66 !important;
+        outline: 2px solid ${theme.primary} !important;
         outline-offset: 2px !important;
       }
 
@@ -1408,11 +1404,6 @@
 
       /* ═══ CUSTOM ANIMATIONS ═══ */
       ${anim ? `
-      @keyframes glow-pulse {
-        0%, 100% { box-shadow: 0 0 20px ${theme.primary}22; }
-        50% { box-shadow: 0 0 30px ${theme.primary}44; }
-      }
-
       @keyframes flicker {
         0%, 100% { opacity: 1; }
         50% { opacity: 0.95; }
@@ -1424,14 +1415,18 @@
         100% { background-position: 0 100%; }
       }
 
-      .v-card {
-        animation: glow-pulse 4s ease-in-out infinite;
-      }
-
       .v-app-bar .v-toolbar-title {
         animation: flicker 3s ease-in-out infinite;
       }
       ` : ''}
+
+      /* ═══ REDUCED MOTION ═══ */
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
 
       /* ═══ PRINT STYLES ═══ */
       @media print {

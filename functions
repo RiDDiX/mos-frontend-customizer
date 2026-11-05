@@ -27,7 +27,8 @@ ensure_loader_tag() {
 install() {
     ensure_loader_tag
     
-    # Set permissions
+    # Set permissions; icons/ holds images uploaded from the plugin page
+    mkdir -p /var/www/mos-plugins/frontend-customizer/icons
     chmod -R 755 /var/www/mos-plugins/frontend-customizer
 }
 
@@ -39,6 +40,9 @@ uninstall() {
     if [ -f "$INDEX_FILE" ]; then
         sed -i '/frontend-customizer\/theme-loader.js/d' "$INDEX_FILE"
     fi
+
+    # Uploaded images are not package files, so dpkg would leave them behind
+    rm -rf /var/www/mos-plugins/frontend-customizer/icons
 }
 
 # Called when the plugin is updated

@@ -88,7 +88,7 @@ jobs:
         printf '%s\n' '#!/bin/bash' 'FN=/var/www/mos-plugins/frontend-customizer/functions' 'if [ -f "$FN" ]; then source "$FN"; install; fi' 'exit 0' > ${PKG_DIR}/DEBIAN/postinst
         chmod 755 ${PKG_DIR}/DEBIAN/postinst
         
-        printf '%s\n' '#!/bin/bash' 'INDEX_FILE="/var/www/index.html"' 'if [ -f "$INDEX_FILE" ]; then' '  sed -i '"'"'/frontend-customizer\/theme-loader.js/d'"'"' "$INDEX_FILE"' 'fi' 'exit 0' > ${PKG_DIR}/DEBIAN/prerm
+        printf '%s\n' '#!/bin/bash' 'INDEX_FILE="/var/www/index.html"' 'if [ -f "$INDEX_FILE" ]; then' '  sed -i '"'"'/frontend-customizer\/theme-loader.js/d'"'"' "$INDEX_FILE"' 'fi' '[ "$1" = remove ] && rm -rf /var/www/mos-plugins/frontend-customizer/icons' 'exit 0' > ${PKG_DIR}/DEBIAN/prerm
         chmod 755 ${PKG_DIR}/DEBIAN/prerm
         
         dpkg-deb --build ${PKG_DIR} .
@@ -113,10 +113,12 @@ jobs:
         - 6 Built-in themes
         - Custom theme creator
         - Branding: app name, logo, tab icon and title, login page
+        - Image picker with uploads for logo, tab icon and background
         - Background image, font, UI scale, card style, corner radius
         - Custom CSS with ?nocss safe mode
         - Hide and reorder menu entries
         - Export, import and reset settings
+        - Tabbed settings page, keyboard accessible theme cards and menu reordering
         
         Install via MOS Hub with template: https://github.com/RiDDiX/mos-templates
         

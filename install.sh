@@ -21,7 +21,7 @@ NC='\033[0m'
 
 echo -e "${CYAN}"
 echo "╔═══════════════════════════════════════════════════════════╗"
-echo "║        Frontend Customizer - MOS Installer v2.4.1         ║"
+echo "║        Frontend Customizer - MOS Installer v2.5.0         ║"
 echo "║     Themes, Branding & Layout Options for MOS             ║"
 echo "╚═══════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
@@ -56,7 +56,8 @@ else
     exit 1
 fi
 
-# Set permissions
+# Set permissions; icons/ holds images uploaded from the plugin page
+mkdir -p "$PLUGIN_DIR/frontend-customizer/icons"
 chmod -R 755 "$PLUGIN_DIR/frontend-customizer"
 echo -e "      Set permissions"
 
